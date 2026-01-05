@@ -20,7 +20,7 @@ jobs:
           registry-url: 'https://registry.npmjs.org/'
 
       - name: Install protoc 
-        run: sudoapt-get update && sudo apt-get install -y protobuf-compiler
+        run: sudo apt-get update && sudo apt-get install -y protobuf-compiler
       
       - name: Install deps
         run: npm install --frozen-lockfile
