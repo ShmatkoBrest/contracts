@@ -1,0 +1,31 @@
+name: Publish
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  public:
+    name: Publish Job
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checout@v4
+
+      - name: Setup Node.jobs
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: 'https://registry.npmjs.org/'
+
+      - name: Install deps
+        run: npm install --frozen-lockfile
+
+      - name: Generate TS Protobuf
+        run: npm run generate
+
+      - name: Publich package
+        run: npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN}}

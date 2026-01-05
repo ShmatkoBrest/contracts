@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+package auth.v1;
+
+// AuthService отвечает за операции аутентификации.
+// В данном случае — отправку одноразового пароля (OTP).
+service AuthService {
+    // SendOtp отправляет одноразовый пароль (OTP) на указанный идентификатор.
+    // Может быть email, телефон или другой тип.
+    rpc SendOtp (SendOtpRequest) returns (SendOtpResponse);
+}
+
+// Запрос на отправку OTP.
+// identifier — email или телефон.
+// type — тип идентификатора (например, "email" или "phone").
+message SendOtpRequest {
+    string identifier = 1;
+    string type = 2;
+}
+
+// Ответ на отправку OTP.
+// ok — true, если отправка прошла успешно.
+message SendOtpResponse {
+    bool ok = 1;
+}
