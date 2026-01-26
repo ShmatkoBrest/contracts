@@ -8,7 +8,7 @@ service AuthService {
     // SendOtp отправляет одноразовый пароль (OTP) на указанный идентификатор.
     // Может быть email, телефон или другой тип.
     rpc SendOtp (SendOtpRequest) returns (SendOtpResponse);
-    rpc VerifyOtp (VerifyOtpRequest) return (VerifyOtpResponse);
+    rpc VerifyOtp (VerifyOtpRequest) returns (VerifyOtpResponse);
 }
 
 // Запрос на отправку OTP.
@@ -35,5 +35,5 @@ message VerifyOtpRequest {
 
 message VerifyOtpResponse {
     string access_token = 1;
-    string refresh_token = 2; //dfdf
+    string refresh_token = 2; 
 }
