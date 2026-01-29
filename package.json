@@ -1,6 +1,6 @@
 {
   "name": "@usteam/contracts",
-  "version": "1.0.2",
+  "version": "1.0.",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "scripts": {
@@ -8,6 +8,7 @@
     "generate": "npx protoc -I ./proto ./proto/*.proto --ts_proto_out=./gen --ts_proto_opt=nestJs=true,package=omit"
   },
   "files": [
+    "dist",
     "proto",
     "gen"
   ],
