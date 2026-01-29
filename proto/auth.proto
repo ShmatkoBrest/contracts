@@ -8,6 +8,8 @@ service AuthService {
     // SendOtp отправляет одноразовый пароль (OTP) на указанный идентификатор.
     // Может быть email, телефон или другой тип.
     rpc SendOtp (SendOtpRequest) returns (SendOtpResponse);
+    // VerifyOtp веривицирует одноразовый пароль.
+    // отправляет токены.
     rpc VerifyOtp (VerifyOtpRequest) returns (VerifyOtpResponse);
 }
 
