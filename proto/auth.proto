@@ -11,6 +11,9 @@ service AuthService {
     // VerifyOtp веривицирует одноразовый пароль.
     // отправляет токены.
     rpc VerifyOtp (VerifyOtpRequest) returns (VerifyOtpResponse);
+    // Refresh обновляет токен.
+    // отправляет токены.
+    rpc Refresh (RefreshRequest) returns (RefreshResponse);
 }
 
 // Запрос на отправку OTP.
@@ -38,4 +41,13 @@ message VerifyOtpRequest {
 message VerifyOtpResponse {
     string access_token = 1;
     string refresh_token = 2; 
+}
+
+message RefreshRequest {
+    string refresh_token = 1;
+}
+
+message RefreshResponse {
+    string access_token = 1;
+    string refresh_token = 2;
 }
