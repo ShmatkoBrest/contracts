@@ -7,6 +7,17 @@ service AccountService {
     // GetAccount отправляет id аккаунта
     // получает данные об аккаунте
   rpc GetAccount (GetAccountRequest) returns (GetAccountResponse);
+
+    // InitEmailChange запрашивает новую почту
+  rpc InitEmailChange(InitEmailChangeRequest) returns (InitEmailChangeResponce);
+    // ConfirmEmailChange подтверждает новую почту
+  rpc ConfirmEmailChange(ConfirmEmailChangeRequest) returns (ConfirmEmailChangeResponce);
+
+    // InitPhoneChange запрашивает новый телефон
+  rpc InitPhoneChange(InitPhoneChangeRequest) returns (InitPhoneChangeResponce);
+    // ConfirmPhoneChange подтверждает новый телефон
+  rpc ConfirmPhoneChange(ConfirmPhoneChangeRequest) returns (ConfirmPhoneChangeResponce);
+
 }
 
 message GetAccountRequest {
@@ -21,6 +32,44 @@ message GetAccountResponse {
   bool   is_email_verified = 5;
   Role   role              = 6;
 
+}
+
+message InitEmailChangeRequest {
+  string email   = 1;
+  string user_id = 2;
+}
+
+message InitEmailChangeResponce {
+  bool ok = 1;
+}
+
+message ConfirmEmailChangeRequest {
+  string email   = 1;
+  string code    = 2;
+  string user_id = 3;
+}
+
+message ConfirmEmailChangeResponce {
+  bool ok = 1;
+}
+
+message InitPhoneChangeRequest {
+  string phone   = 1;
+  string user_id = 2;
+}
+
+message InitPhoneChangeResponce {
+  bool ok = 1;
+}
+
+message ConfirmPhoneChangeRequest {
+  string phone   = 1;
+  string code    = 2;
+  string user_id = 3;
+}
+
+message ConfirmPhoneChangeResponce {
+  bool ok = 1;
 }
 
 enum Role {
