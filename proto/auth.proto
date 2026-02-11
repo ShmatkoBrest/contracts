@@ -2,18 +2,26 @@ syntax = "proto3";
 
 package auth.v1;
 
+import "google/protobuf/empty.proto";
+
 // AuthService отвечает за операции аутентификации.
 // В данном случае — отправку одноразового пароля (OTP).
 service AuthService {
     // SendOtp отправляет одноразовый пароль (OTP) на указанный идентификатор.
     // Может быть email, телефон или другой тип.
     rpc SendOtp (SendOtpRequest) returns (SendOtpResponse);
-    // VerifyOtp веривицирует одноразовый пароль.
+    // VerifyOtp верифицирует одноразовый пароль.
     // отправляет токены.
     rpc VerifyOtp (VerifyOtpRequest) returns (VerifyOtpResponse);
     // Refresh обновляет токен.
-    // отправляет токены.
+    // 
     rpc Refresh (RefreshRequest) returns (RefreshResponse);
+    // TelegramInit - генерация url для авторизации в telegram.
+    // 
+    rpc TelegramInit (google.protobuf.Empty) returns (TelegramInitResponse);
+        // TelegramInit - генерация url для авторизации в telegram.
+    // 
+    rpc TelegramVerify (TelegramVerifyRequest) returns (TelegramVerifyResponse);
 }
 
 // Запрос на отправку OTP.
@@ -50,4 +58,20 @@ message RefreshRequest {
 message RefreshResponse {
     string access_token = 1;
     string refresh_token = 2;
+}
+
+message TelegramInitResponse {
+    string url = 1;
+}
+//лучше указать реальные поля, которые передает telegram
+message TelegramVerifyRequest {
+    map<string,string> query = 1;
+}
+
+message TelegramVerifyResponse {
+oneof result {
+  string url = 1;
+  string access_token = 2;
+  string refresh_token = 3;
+}
 }
