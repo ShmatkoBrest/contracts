@@ -22,6 +22,12 @@ service AuthService {
         // TelegramInit - генерация url для авторизации в telegram.
     // 
     rpc TelegramVerify (TelegramVerifyRequest) returns (TelegramVerifyResponse);
+    // TelegramComplete вызывает телеграм бот
+    // пользователь передает sessionId и номер телефона 
+    rpc TelegramComplete(TelegramCompleteRequest) returns (TelegramCompleteResponse);
+    // TelegramConsume вызывает gateway
+    // отдает пару токенов
+    rpc TelegramConsume(TelegramConsumeRequest) returns (TelegramConsumeResponse);
 }
 
 // Запрос на отправку OTP.
@@ -74,4 +80,22 @@ oneof result {
   string access_token = 2;
   string refresh_token = 3;
 }
+}
+
+message TelegramCompleteRequest {
+    string session_id = 1;
+    string phone = 2;
+}
+
+message TelegramCompleteResponse {
+string session_id = 1;
+}
+
+message TelegramConsumeRequest {
+    string session_id = 1;
+}
+
+message TelegramConsumeResponse {
+  string access_token = 1;
+  string refresh_token = 2;
 }
