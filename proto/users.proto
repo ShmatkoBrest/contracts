@@ -1,0 +1,37 @@
+syntax = "proto3";
+
+package users.v1;
+
+// UsersService отвечает за операции связанные с пользователем.
+service UsersService {
+    // GetMe id текущего пользователя.
+    // получает объект с данными текущего пользователя
+    rpc GetMe (GetMeRequest) returns (GetMeResponse);
+    // CreateUser создает нового пользователя
+    rpc CreateUser (CreateUserRequest) returns (CreateUserResponse);
+
+}
+
+message  GetMeRequest {
+  string id = 1;
+}
+
+message GetMeResponse {
+    User user = 1;
+}
+
+message CreateUserRequest {
+    string id = 1;
+}
+
+message CreateUserResponse {
+    bool ok = 1;
+}
+
+message User {
+    string id = 1;
+    optional string name = 2;
+    optional string phone = 3;
+    optional string email = 4;
+    optional string avatar = 5;
+}
