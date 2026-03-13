@@ -2,14 +2,17 @@ syntax = "proto3";
 
 package users.v1;
 
-// UsersService отвечает за операции связанные с пользователем.
+/// UsersService отвечает за операции связанные с пользователем.
 service UsersService {
-    // GetMe id текущего пользователя.
-    // получает объект с данными текущего пользователя
+    /// GetMe id текущего пользователя.
+    /// получает объект с данными текущего пользователя
     rpc GetMe (GetMeRequest) returns (GetMeResponse);
-    // CreateUser создает нового пользователя
+    /// CreateUser создает нового пользователя
     rpc CreateUser (CreateUserRequest) returns (CreateUserResponse);
+    /// CreateUser создает нового пользователя
+    rpc PatchUser (PatchUserRequest) returns (PatchUserResponse);
 
+    
 }
 
 message  GetMeRequest {
@@ -27,6 +30,17 @@ message CreateUserRequest {
 message CreateUserResponse {
     bool ok = 1;
 }
+
+message PatchUserRequest {
+    string user_id = 1;
+
+    optional string name = 2;
+}
+
+message PatchUserResponse {
+    bool ok = 1;
+}
+
 
 message User {
     string id = 1;
