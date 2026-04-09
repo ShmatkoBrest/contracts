@@ -1,0 +1,46 @@
+syntax = "proto3";
+
+package media.v1;
+
+option go_package = "github.com/ShmatkoBrest/contracts/media:media";
+option java_multiple_files = true;
+
+// Сервис для работы с файлами в S3
+service MediaService {
+    // Загружает файл в S3
+  rpc Upload (UploadRequest) returns (UploadResponse);
+  // Получает файл по ключу в S3
+  rpc Get (GetRequest) returns (GetResponse);
+  // Удаляет файл по ключу в S3
+  rpc Delete (DeleteRequest) returns (DeleteResponse);
+}
+
+message UploadRequest {
+  string         file_name     = 1;
+  string         folder        = 2;
+  string         content_type  = 3;
+  bytes          data          = 4;
+  optional int32 resize_width  = 5;
+  optional int32 resize_height = 6;
+}
+
+message UploadResponse {
+  string key = 1;
+}
+
+message GetRequest {
+  string key = 1;
+}
+
+message GetResponse {
+  bytes  data         = 1;
+  string content_type = 2;
+}
+
+message DeleteRequest {
+  string key = 1;
+}
+
+message DeleteResponse {
+  bool ok = 1;
+}
