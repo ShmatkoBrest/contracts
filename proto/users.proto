@@ -35,6 +35,7 @@ message PatchUserRequest {
     string user_id = 1;
 
     optional string name = 2;
+    optional string avatar = 3;
 }
 
 message PatchUserResponse {
