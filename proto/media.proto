@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package media.v1;
 
-option go_package = "github.com/ShmatkoBrest/contracts/media:media";
+option go_package = "github.com/ShmatkoBrest/contracts/gen/go/media";
 option java_multiple_files = true;
 
 // Сервис для работы с файлами в S3
