@@ -4,5 +4,7 @@ export const PROTO_PATHS = {
     AUTH: join(__dirname, '../../proto/auth.proto'),
     ACCOUNT: join(__dirname, '../../proto/account.proto'),
     USERS: join(__dirname, '../../proto/users.proto'),
-    MEDIA: join(__dirname, '../../proto/media.proto')
+    MEDIA: join(__dirname, '../../proto/media.proto'),
+    EVENT: join(__dirname, '../../proto/event.proto'),
+    CATEGORY: join(__dirname, '../../proto/category.proto'),
 } as const

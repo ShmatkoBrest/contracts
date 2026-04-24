@@ -1,6 +1,6 @@
 {
   "name": "@usteam/contracts",
-  "version": "1.1.12",
+  "version": "1.2.0",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "scripts": {
@@ -22,7 +22,7 @@
     "ts-proto": "^2.10.1"
   },
   "devDependencies": {
-    "@types/node": "^25.1.0",
+    "@types/node": "^25.6.0",
     "typescript": "^5.9.3"
   }
 }

@@ -1,0 +1,57 @@
+syntax = "proto3";
+
+package event.v1;
+
+import "google/protobuf/timestamp.proto";
+
+// Сервис для работы с событиями
+service EventService {
+        // получение событий
+  rpc ListEvents (ListEventsRequest) returns (ListEventsResponse);
+         // получение события
+  rpc GetEvents (GetEventRequest) returns (GetEventResponse);
+ 
+}
+
+message ListEventsRequest {
+    string category = 1;
+    bool random = 2;
+    int32 limit = 3;
+}
+
+message ListEventsResponse {
+    repeated Event events = 1;
+}
+
+message GetEventRequest {
+    oneof key {
+        string id = 1;
+        string slug = 2;
+    }
+}
+
+message GetEventResponse {
+    EventDetails event = 1;
+}
+
+message Event {
+    string id = 1;
+    string title = 2;
+    string slug = 3;
+    string poster = 4;
+    string rating_age = 5;
+    google.protobuf.Timestamp release_date = 6;
+}
+
+message EventDetails {
+    string id = 1;
+    string title = 2;
+    string slug = 3;
+    string description = 4;
+    string poster = 5;
+    string banner = 6;
+    int32 duration = 7;
+    string rating_age = 8;
+    string place = 9;
+    google.protobuf.Timestamp release_date = 10;
+}
