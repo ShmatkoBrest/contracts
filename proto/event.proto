@@ -39,7 +39,7 @@ message Event {
     string title = 2;
     string slug = 3;
     string poster = 4;
-    string rating_age = 5;
+    int32 rating_age = 5;
     google.protobuf.Timestamp release_date = 6;
 }
 
@@ -51,7 +51,7 @@ message EventDetails {
     string poster = 5;
     string banner = 6;
     int32 duration = 7;
-    string rating_age = 8;
+    int32 rating_age = 8;
     string place = 9;
     google.protobuf.Timestamp release_date = 10;
 }
