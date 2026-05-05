@@ -6,40 +6,40 @@ import "google/protobuf/empty.proto";
 
 service ArenaService {
     //получение списка арен
-    rpc ListArenas (google.protobuf.Empty) returns (ListArenasResponse);
+  rpc ListArenas (google.protobuf.Empty) returns (ListArenasResponse);
     //получение арены по id
-    rpc GetArena (GetArenaRequest) returns (GetArenaResponse);
+  rpc GetArena (GetArenaRequest) returns (GetArenaResponse);
     // Создание арены
-    rpc CreateArena (CreateArenaRequest) returns (CreateArenaResponse);
+  rpc CreateArena (CreateArenaRequest) returns (CreateArenaResponse);
 
 }
 
 message ListArenasResponse {
-    repeated Arena arenas = 1;
+  repeated Arena arenas = 1;
 }
 
 message GetArenaRequest {
-    string id = 1;
+  string id = 1;
 }
 
 message GetArenaResponse {
-    Arena arena = 1;
+  Arena arena = 1;
 }
 
 message CreateArenaRequest {
-    string name = 1;
-    string address = 2;
-    optional string image = 3;
+  string name    = 1;
+  string address = 2;
+  string image   = 3;
 
 }
 
 message CreateArenaResponse {
-    bool ok = 1;
+  bool ok = 1;
 }
 
 message Arena {
-    string id = 1;
-    string name = 2;
-    string address = 3;
-    optional string image = 4;
+  string id      = 1;
+  string name    = 2;
+  string address = 3;
+  string image   = 4;
 }
