@@ -34,7 +34,7 @@ message CreateArenaRequest {
 }
 
 message CreateArenaResponse {
-  bool ok = 1;
+  Arena arena = 1;
 }
 
 message Arena {

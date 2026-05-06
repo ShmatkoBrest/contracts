@@ -1,0 +1,55 @@
+syntax =  "proto3";
+
+package sector.v1;
+
+service SectorService {
+    // Создание сектора
+    rpc CreateSector (CreateSectorRequest) returns (CreateSectorResponse);
+    // Получение сектора по id
+    rpc GetSector (GetSectorRequest) returns (GetSectorResponse);
+    //Получение секторов для конкретной арены
+    rpc ListSectorsByArena (ListSectorsRequest) returns (ListSectorsResponse);
+
+}
+
+message CreateSectorRequest {
+    string name = 1;
+    string arena_id = 2;
+    repeated RowLayout layout = 3;
+}
+
+message CreateSectorResponse {
+    Sector sector = 1;
+}
+
+message GetSectorRequest {
+    string id =1;
+}
+
+message GetSectorResponse {
+    Sector sector = 1;
+}
+
+message ListSectorsRequest {
+    string sector_id =1;
+}
+
+message ListSectorsResponse {
+ repeated Sector sector = 1;
+}
+
+
+
+message Sector {
+    string id = 1;
+    string name = 2;
+    string arena_id = 3;
+    repeated RowLayout layout = 4;
+}
+
+message RowLayout {
+    int32 row = 1;
+    int32 colomns = 2;
+    string type = 3;
+    int32 price = 4;
+}

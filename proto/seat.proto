@@ -1,0 +1,38 @@
+syntax =  "proto3";
+
+package seat.v1;
+
+service SeatService {
+    // Получение места по id
+    rpc GetSeat (GetSeatRequest) returns (GetSeatResponse);
+    //Получение мест для конкретного сектора
+    rpc ListSeatBySector (ListSeatsRequest) returns (ListSeatsResponse);
+
+}
+
+message GetSeatRequest {
+    string id = 1;
+}
+
+message GetSeatResponse {
+    Seat seat = 1;
+}
+
+message ListSeatsRequest {
+    string sector_id = 1;
+    string screening_id = 2;
+}
+
+message ListSeatsResponse {
+    repeated Seat seat = 1;
+}
+
+message Seat {
+    string id = 1;
+    int32 row = 2;
+    int32 number = 3;
+    int32 price = 4;
+    string status = 5;
+    string type = 6;
+    string sector_id = 7;
+}
