@@ -35,7 +35,7 @@ message ListSectorsRequest {
 }
 
 message ListSectorsResponse {
- repeated Sector sector = 1;
+ repeated Sector sectors = 1;
 }
 
 
@@ -44,7 +44,6 @@ message Sector {
     string id = 1;
     string name = 2;
     string arena_id = 3;
-    repeated RowLayout layout = 4;
 }
 
 message RowLayout {
