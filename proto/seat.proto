@@ -24,7 +24,7 @@ message ListSeatsRequest {
 }
 
 message ListSeatsResponse {
-    repeated Seat seat = 1;
+    repeated Seat seats = 1;
 }
 
 message Seat {
