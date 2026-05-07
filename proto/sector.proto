@@ -48,7 +48,7 @@ message Sector {
 
 message RowLayout {
     int32 row = 1;
-    int32 colomns = 2;
+    int32 columns = 2;
     string type = 3;
     int32 price = 4;
 }
