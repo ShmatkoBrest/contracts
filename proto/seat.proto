@@ -6,7 +6,7 @@ service SeatService {
     // Получение места по id
     rpc GetSeat (GetSeatRequest) returns (GetSeatResponse);
     //Получение мест для конкретного сектора
-    rpc ListSeatBySector (ListSeatsRequest) returns (ListSeatsResponse);
+    rpc ListSeatsBySector (ListSeatsRequest) returns (ListSeatsResponse);
 
 }
 
