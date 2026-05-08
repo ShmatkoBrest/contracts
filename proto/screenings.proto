@@ -1,0 +1,90 @@
+syntax = "proto3";
+
+package screening.v1;
+import "google/protobuf/timestamp.proto";
+
+service ScreeningService {
+    //
+    rpc CreateScreening (CreateScreeningRequest) returns (CreateScreeningResponse);
+    //
+    rpc GetScreenings (GetScreeningsRequest) returns (GetScreeningsResponse);
+    // Необязательный сервис
+    rpc GetScreeningsByEvent (GetScreeningsByEventRequest) returns (GetScreeningsByEventResponse);
+    // 
+    rpc GetScreening (GetScreeningRequest) returns (GetScreeningResponse);
+
+}
+
+message CreateScreeningRequest {
+    string event_id = 1;
+    string sector_id = 2;
+    google.protobuf.Timestamp start_at = 3;
+    google.protobuf.Timestamp end_at = 4;
+}
+
+message CreateScreeningResponse {
+    bool ok = 1;
+}
+
+message GetScreeningsRequest {
+    optional string arena_id = 1;
+    optional string date = 2;
+}
+
+message GetScreeningsResponse {
+    repeated Screening screenings = 1;
+}
+
+message GetScreeningsByEventRequest {
+    string event_id = 1;
+    optional string date = 2;
+}
+
+message GetScreeningsByEventResponse {
+    repeated Screening screenings = 1;
+}
+
+message GetScreeningRequest{
+    string id = 1;
+}
+
+message GetScreeningResponse {
+    Screening screening = 1;
+}
+
+message Event {
+    string id = 1;
+    string title = 2;
+    string slug = 3;
+    string poster = 4;
+    int32 rating_age = 5;
+    google.protobuf.Timestamp release_date = 6;
+}
+
+message Screening {
+    string id = 1;
+    google.protobuf.Timestamp start_at = 2;
+    google.protobuf.Timestamp end_at = 3;
+
+    Arena arena = 4;
+    Sector sector = 5;
+    Event event = 6;
+    repeated SeatType seat_type = 7;
+}
+
+message Arena {
+    string id = 1;
+    string name = 2;
+    string address = 3;
+    string image = 4;
+}
+
+message Sector {
+    string id = 1;
+    string name = 2;
+}
+
+message SeatType {
+    string type = 1;
+    int32 price =2;
+}
