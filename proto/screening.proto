@@ -18,8 +18,8 @@ service ScreeningService {
 message CreateScreeningRequest {
     string event_id = 1;
     string sector_id = 2;
-    google.protobuf.Timestamp start_at = 3;
-    google.protobuf.Timestamp end_at = 4;
+    string start_at = 3;
+    string end_at = 4;
 }
 
 message CreateScreeningResponse {
