@@ -31,7 +31,7 @@ message GetSectorResponse {
 }
 
 message ListSectorsRequest {
-    string sector_id =1;
+    string arena_id =1;
 }
 
 message ListSectorsResponse {
