@@ -11,6 +11,7 @@ export const PROTO_PATHS = {
     SECTOR: join(__dirname, '../../proto/sector.proto'),
     SEAT: join(__dirname, '../../proto/seat.proto'),
     SCREENING: join(__dirname, '../../proto/screening.proto'),
+    PAYMENT: join(__dirname, '../../proto/payment.proto'),
 
 
 } as const

@@ -1,0 +1,43 @@
+syntax = "proto3";
+
+package payment.v1;
+
+service PaymentService {
+    // Создание платежа
+  rpc CreatePayment (CreatePaymentRequest) returns (CreatePaymentResponse);
+  // Обработка вебхука (начисление брони) от платежной системы
+  rpc ProcessPaymentEvent (ProcessPaymentEventRequest) returns (ProcessPaymentEventResponse);
+//
+
+}
+message CreatePaymentRequest {
+  string user_id = 1;
+  string screening_id = 2;
+  repeated SeatInput seats = 3;
+  optional string payment_method_id = 4;
+  bool save_payment_method = 5;
+}
+message CreatePaymentResponse {
+  string url = 1;
+}
+
+message ProcessPaymentEventRequest {
+    //status
+    string event = 1;
+    string payment_id = 2;
+    string booking_id = 3;
+    string user_id = 4;
+    bool save_payment_method = 5;
+    string provider_payment_id = 6;
+    string cart_first6 = 7;
+    string cart_last4 = 8;
+}
+
+message ProcessPaymentEventResponse {
+    bool ok = 1;
+}
+
+message SeatInput {
+    string seat_id = 1;
+    int32 price = 2;
+}
