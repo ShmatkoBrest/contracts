@@ -28,7 +28,7 @@ message ProcessPaymentEventRequest {
     string booking_id = 3;
     string user_id = 4;
     bool save_payment_method = 5;
-    string provider_payment_id = 6;
+    string provider_method_id = 6;
     string cart_first6 = 7;
     string cart_last4 = 8;
 }
