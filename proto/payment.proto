@@ -3,11 +3,18 @@ syntax = "proto3";
 package payment.v1;
 
 service PaymentService {
-    // Создание платежа
+  // Создание платежа
   rpc CreatePayment (CreatePaymentRequest) returns (CreatePaymentResponse);
-  // Обработка вебхука (начисление брони) от платежной системы
+  // Обработка  (начисление брони) от платежной системы
   rpc ProcessPaymentEvent (ProcessPaymentEventRequest) returns (ProcessPaymentEventResponse);
-//
+  //
+  rpc GetUserPaymentMethods (GetUserPaymentMethodsRequest) returns (GetUserPaymentMethodsResponse);
+  //
+  rpc CreatePaymentMethod (CreatePaymentMethodRequest) returns (CreatePaymentMethodResponse);
+  //
+  rpc VerifyPaymentMethod (VerifyPaymentMethodRequest) returns (VerifyPaymentMethodResponse);
+  //
+  rpc DeletePaymentMethod (DeletePaymentMethodRequest) returns (DeletePaymentMethodResponse);
 
 }
 message CreatePaymentRequest {
@@ -31,10 +38,55 @@ message ProcessPaymentEventRequest {
     string provider_method_id = 6;
     string card_first6 = 7;
     string card_last4 = 8;
+    string bank = 9;
+    string brand = 10;
 }
 
 message ProcessPaymentEventResponse {
     bool ok = 1;
+}
+
+message GetUserPaymentMethodsRequest {
+  string user_id = 1;
+}
+
+message GetUserPaymentMethodsResponse {
+  repeated PaymentMethodItem methods = 1;
+}
+
+message CreatePaymentMethodRequest {
+  string user_id = 1;
+}
+
+message CreatePaymentMethodResponse {
+  string id = 1;
+  string url = 2;
+}
+
+message VerifyPaymentMethodRequest {
+  string user_id = 1;
+  string method_id = 2;
+}
+
+message VerifyPaymentMethodResponse {
+  bool ok = 1;
+}
+
+message DeletePaymentMethodRequest {
+  string user_id = 1;
+  string method_id = 2;
+}
+
+message DeletePaymentMethodResponse {
+  bool ok = 1;
+}
+
+message PaymentMethodItem {
+  string id = 1;
+  string bank = 2;
+  string brand = 3;
+  string first6 = 4;
+  string last4 = 5;
 }
 
 message SeatInput {

@@ -1,0 +1,29 @@
+syntax = "proto3";
+
+package refund.v1;
+
+service RefundService {
+  // Создание возврата
+  rpc CreateRefund (CreateRefundRequest) returns (CreateRefundResponse);
+  // Обработка  (снятие брони) от платежной системы
+  rpc ProcessRefundEvent (ProcessRefundEventRequest) returns (ProcessRefundEventResponse);
+}
+
+message CreateRefundRequest {
+    string booking_id = 1;
+    string user_id = 2;
+}
+
+message CreateRefundResponse {
+    bool ok = 1;
+}
+
+message ProcessRefundEventRequest {
+    string event = 1;
+    string provider_refund_id = 2;
+    string status = 3;
+}
+
+message ProcessRefundEventResponse {
+    bool ok = 1;
+}
