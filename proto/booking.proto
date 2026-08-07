@@ -6,7 +6,7 @@ service BookingService {
     // Получение всех активных броней пользователя
     rpc GetUserBookings (GetUserBookingsRequest) returns (GetUserBookingsResponse);
     // создание брони
-    rpc CreateReservation (CreateReservationRequest) returns (CreateReservationResponse);
+    rpc CreateReservation (CreateReservationRequest) returns (CreateReservationResponse);   
     // подтверждение брони
     rpc ConfirmBooking (ConfirmBookingRequest) returns (ConfirmBookingResponse);
     // отмена брони (при возврате платежа)
