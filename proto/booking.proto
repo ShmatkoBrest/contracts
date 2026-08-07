@@ -1,0 +1,101 @@
+syntax = "proto3";
+
+package booking.v1;
+
+service BookingService {
+    // Получение всех активных броней пользователя
+    rpc GetUserBookings (GetUserBookingsRequest) returns (GetUserBookingsResponse);
+    // создание брони
+    rpc CreateReservation (CreateReservationRequest) returns (CreateReservationResponse)
+    // подтверждение брони
+    rpc ConfirmBooking (ConfirmBookingRequest) returns (ConfirmBookingResponse);
+    // отмена брони (при возврате платежа)
+    rpc CancelBooking (CancelBookingRequest) returns (CancelBookingResponse);
+    // получение занятых мест
+    rpc ListReservedSeats (ListReservedSeatsRequest) returns (ListReservedSeatsResponse);
+}
+
+message GetUserBookingsRequest {
+    string user_id = 1;
+}
+
+message GetUserBookingsResponse {
+    repeated BookingItem bookings = 1;
+}
+
+message CreateReservationRequest {
+    string user_id = 1;
+    string screening_id = 2;
+    repeated SeatInput seats = 3;
+}
+
+message CreateReservationResponse {
+    string order_id = 1;
+    repeated string ticket_ids = 2;
+    int32 amount = 3;
+}
+
+message SeatInput {
+    string seat_id = 1;
+    int32 price = 2;
+}
+
+message ConfirmBookingRequest {
+    string booking_id = 1;
+    string user_id = 2;
+}
+
+message ConfirmBookingResponse {
+    bool ok = 1;
+}
+
+message CancelBookingRequest {
+    string booking_id = 1;
+    string user_id = 2;
+}
+
+message CancelBookingResponse {
+    bool ok = 1;
+}
+
+message ListReservedSeatsRequest {
+    string sector_id = 1;
+    string screening_id = 2;
+}
+
+message ListReservedSeatsResponse {
+    repeated string reserved_seat_ids = 1;
+}
+
+message BookingSeatInfo {
+    string id = 1;
+    int32 row = 2;
+    int32 number 3;
+}
+
+message BookingEventInfo {
+    string id = 1;
+    string title = 2;
+    string poster = 3;
+}
+
+message BookingArenaInfo {
+    string id = 1;
+    string name = 2;
+}
+
+message BookingSectorInfo {
+    string id = 1;
+    string name = 2;
+}
+
+message BookingItem {
+    string id = 1;
+    string screening_date = 2;
+    string screening_time = 3;
+    BookingEventInfo event = 4;
+    BookingArenaInfo arena = 5;
+    BookingSectorInfo sector = 6;
+    repeated BookingSeatInfo seats = 7;
+    string qr_code = 8;
+}
