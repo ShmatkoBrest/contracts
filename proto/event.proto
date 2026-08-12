@@ -3,14 +3,20 @@ syntax = "proto3";
 package event.v1;
 
 import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
 
 // Сервис для работы с событиями
 service EventService {
-        // получение событий
-  rpc ListEvents (ListEventsRequest) returns (ListEventsResponse);
-         // получение события
-  rpc GetEvents (GetEventRequest) returns (GetEventResponse);
- 
+    // получение событий
+    rpc ListEvents (ListEventsRequest) returns (ListEventsResponse);
+    // получение события
+    rpc GetEvents (GetEventRequest) returns (GetEventResponse);
+    // создание события
+    rpc CreateEvent (CreateEventRequest) returns (GetEventResponse);
+    // обновление события
+    rpc UpdateEvent (UpdateEventRequest) returns (GetEventResponse);
+    // удаление события
+    rpc DeleteEvent (DeleteEventRequest) returns (DeleteEventResponse);
 }
 
 message ListEventsRequest {
@@ -32,6 +38,41 @@ message GetEventRequest {
 
 message GetEventResponse {
     EventDetails event = 1;
+}
+
+message CreateEventRequest {
+    string title = 1;
+    string slug = 2;
+    string description = 3;
+    string poster = 4;
+    string banner = 5;
+    int32 duration = 6;
+    int32 rating_age = 7;
+    string place = 8;
+    google.protobuf.Timestamp release_date = 9;
+    string category = 10; // slug категории
+}
+
+message UpdateEventRequest {
+    string id = 1;
+    optional string title = 2;
+    optional string slug = 3;
+    optional string description = 4;
+    optional string poster = 5;
+    optional string banner = 6;
+    optional int32 duration = 7;
+    optional int32 rating_age = 8;
+    optional string place = 9;
+    optional google.protobuf.Timestamp release_date = 10;
+    optional string category = 11; // slug категории
+}
+
+message DeleteEventRequest {
+    string id = 1;
+}
+
+message DeleteEventResponse {
+    bool ok = 1;
 }
 
 message Event {

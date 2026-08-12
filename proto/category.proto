@@ -16,7 +16,7 @@ service CategoryService {
     rpc UpdateCategory (UpdateCategoryRequest) returns (Category);
     
     // удаление категории
-    rpc DeleteCategory (DeleteCategoryRequest) returns (google.protobuf.Empty);
+    rpc DeleteCategory (DeleteCategoryRequest) returns (DeleteCategoryResponse);
 }
 
 // Запросы
@@ -33,6 +33,10 @@ message UpdateCategoryRequest {
 
 message DeleteCategoryRequest {
     string id = 1;
+}
+
+message DeleteCategoryResponse {
+    bool ok = 1;
 }
 
 // Ответы
