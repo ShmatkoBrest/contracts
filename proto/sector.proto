@@ -1,4 +1,4 @@
-syntax =  "proto3";
+syntax = "proto3";
 
 package sector.v1;
 
@@ -7,9 +7,12 @@ service SectorService {
     rpc CreateSector (CreateSectorRequest) returns (CreateSectorResponse);
     // Получение сектора по id
     rpc GetSector (GetSectorRequest) returns (GetSectorResponse);
-    //Получение секторов для конкретной арены
+    // Получение секторов для конкретной арены
     rpc ListSectorsByArena (ListSectorsRequest) returns (ListSectorsResponse);
-
+    // Обновление сектора
+    rpc UpdateSector (UpdateSectorRequest) returns (UpdateSectorResponse);
+    // Удаление сектора
+    rpc DeleteSector (DeleteSectorRequest) returns (DeleteSectorResponse);
 }
 
 message CreateSectorRequest {
@@ -23,7 +26,7 @@ message CreateSectorResponse {
 }
 
 message GetSectorRequest {
-    string id =1;
+    string id = 1;
 }
 
 message GetSectorResponse {
@@ -31,14 +34,30 @@ message GetSectorResponse {
 }
 
 message ListSectorsRequest {
-    string arena_id =1;
+    string arena_id = 1;
 }
 
 message ListSectorsResponse {
- repeated Sector sectors = 1;
+    repeated Sector sectors = 1;
 }
 
+message UpdateSectorRequest {
+    string id = 1;
+    string name = 2;
+    repeated RowLayout layout = 3;
+}
 
+message UpdateSectorResponse {
+    Sector sector = 1;
+}
+
+message DeleteSectorRequest {
+    string id = 1;
+}
+
+message DeleteSectorResponse {
+    bool success = 1;
+}
 
 message Sector {
     string id = 1;
