@@ -14,7 +14,7 @@ service ArenaService {
     // обновление арены
     rpc UpdateArena (UpdateArenaRequest) returns (UpdateArenaResponse);
     // удаление арены
-    rpc DeleteArena (DeleteArenaRequest) returns (google.protobuf.Empty);
+    rpc DeleteArena (DeleteArenaRequest) returns (DeleteArenaResponse);
 }
 
 message ListArenasResponse {
@@ -52,6 +52,10 @@ message UpdateArenaResponse {
 
 message DeleteArenaRequest {
     string id = 1;
+}
+
+message DeleteArenaResponse {
+  bool ok = 1;
 }
 
 message Arena {
