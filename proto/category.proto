@@ -8,8 +8,34 @@ import "google/protobuf/empty.proto";
 service CategoryService {
     // получение всех категорий
     rpc GetAllCategories (google.protobuf.Empty) returns (GetAllCategoriesResponse);
+    
+    // создание категории
+    rpc CreateCategory (CreateCategoryRequest) returns (Category);
+    
+    // обновление категории
+    rpc UpdateCategory (UpdateCategoryRequest) returns (Category);
+    
+    // удаление категории
+    rpc DeleteCategory (DeleteCategoryRequest) returns (google.protobuf.Empty);
 }
 
+// Запросы
+message CreateCategoryRequest {
+    string title = 1;
+    string slug = 2;
+}
+
+message UpdateCategoryRequest {
+    string id = 1;
+    string title = 2;
+    string slug = 3;
+}
+
+message DeleteCategoryRequest {
+    string id = 1;
+}
+
+// Ответы
 message GetAllCategoriesResponse {
     repeated Category categories = 1;
 }
