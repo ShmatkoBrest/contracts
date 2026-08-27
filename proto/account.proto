@@ -9,14 +9,14 @@ service AccountService {
   rpc GetAccount (GetAccountRequest) returns (GetAccountResponse);
 
     // InitEmailChange запрашивает новую почту
-  rpc InitEmailChange(InitEmailChangeRequest) returns (InitEmailChangeResponce);
+  rpc InitEmailChange(InitEmailChangeRequest) returns (InitEmailChangeResponse);
     // ConfirmEmailChange подтверждает новую почту
-  rpc ConfirmEmailChange(ConfirmEmailChangeRequest) returns (ConfirmEmailChangeResponce);
+  rpc ConfirmEmailChange(ConfirmEmailChangeRequest) returns (ConfirmEmailChangeResponse);
 
     // InitPhoneChange запрашивает новый телефон
-  rpc InitPhoneChange(InitPhoneChangeRequest) returns (InitPhoneChangeResponce);
+  rpc InitPhoneChange(InitPhoneChangeRequest) returns (InitPhoneChangeResponse);
     // ConfirmPhoneChange подтверждает новый телефон
-  rpc ConfirmPhoneChange(ConfirmPhoneChangeRequest) returns (ConfirmPhoneChangeResponce);
+  rpc ConfirmPhoneChange(ConfirmPhoneChangeRequest) returns (ConfirmPhoneChangeResponse);
 
 }
 
@@ -39,7 +39,7 @@ message InitEmailChangeRequest {
   string user_id = 2;
 }
 
-message InitEmailChangeResponce {
+message InitEmailChangeResponse {
   bool ok = 1;
 }
 
@@ -49,7 +49,7 @@ message ConfirmEmailChangeRequest {
   string user_id = 3;
 }
 
-message ConfirmEmailChangeResponce {
+message ConfirmEmailChangeResponse {
   bool ok = 1;
 }
 
@@ -58,7 +58,7 @@ message InitPhoneChangeRequest {
   string user_id = 2;
 }
 
-message InitPhoneChangeResponce {
+message InitPhoneChangeResponse {
   bool ok = 1;
 }
 
@@ -68,7 +68,7 @@ message ConfirmPhoneChangeRequest {
   string user_id = 3;
 }
 
-message ConfirmPhoneChangeResponce {
+message ConfirmPhoneChangeResponse {
   bool ok = 1;
 }
 

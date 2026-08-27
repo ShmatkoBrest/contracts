@@ -7,3 +7,12 @@ yarn.lock
 .DS_Store
 .vscode/
 .log
+
+# Private keys — never commit these
+id_rsa
+id_ed25519
+id_ecdsa
+id_dsa
+*.pem
+*.key
+!*.pub

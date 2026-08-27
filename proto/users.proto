@@ -9,7 +9,7 @@ service UsersService {
     rpc GetMe (GetMeRequest) returns (GetMeResponse);
     /// CreateUser создает нового пользователя
     rpc CreateUser (CreateUserRequest) returns (CreateUserResponse);
-    /// CreateUser создает нового пользователя
+    /// PatchUser частично обновляет данные пользователя (имя и/или аватар)
     rpc PatchUser (PatchUserRequest) returns (PatchUserResponse);
 
     

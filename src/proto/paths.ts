@@ -7,6 +7,8 @@ export const PROTO_PATHS = {
     MEDIA: join(__dirname, '../../proto/media.proto'),
     EVENT: join(__dirname, '../../proto/event.proto'),
     CATEGORY: join(__dirname, '../../proto/category.proto'),
+    ORGANIZER: join(__dirname, '../../proto/organizer.proto'),
+    PERFORMER: join(__dirname, '../../proto/performer.proto'),
     ARENA: join(__dirname, '../../proto/arena.proto'),
     SECTOR: join(__dirname, '../../proto/sector.proto'),
     SEAT: join(__dirname, '../../proto/seat.proto'),
