@@ -50,6 +50,15 @@ message CreateEventRequest {
     string place = 8;
     google.protobuf.Timestamp release_date = 9;
     string category = 10; // slug категории
+    optional string organizer_id = 11;
+    repeated string performer_ids = 12;
+}
+
+// Обёртка нужна, чтобы отличить "поле не передано" (performer_ids не тронут
+// при обновлении) от "передан пустой список" (у события больше нет
+// исполнителей) — у repeated-полей в proto3 нет собственного presence.
+message PerformerIdList {
+    repeated string ids = 1;
 }
 
 message UpdateEventRequest {
@@ -64,6 +73,8 @@ message UpdateEventRequest {
     optional string place = 9;
     optional google.protobuf.Timestamp release_date = 10;
     optional string category = 11; // slug категории
+    optional string organizer_id = 12;
+    PerformerIdList performer_ids = 13;
 }
 
 message DeleteEventRequest {
@@ -94,4 +105,6 @@ message EventDetails {
     int32 rating_age = 8;
     string place = 9;
     google.protobuf.Timestamp release_date = 10;
+    optional string organizer_id = 11;
+    repeated string performer_ids = 12;
 }
