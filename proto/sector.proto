@@ -7,6 +7,9 @@ service SectorService {
     rpc CreateSector (CreateSectorRequest) returns (CreateSectorResponse);
     // Получение сектора по id
     rpc GetSector (GetSectorRequest) returns (GetSectorResponse);
+    // Получение сектора по id вместе с раскладкой мест по рядам
+    // (актуально только для секторов с mode = RESERVED)
+    rpc GetSectorWithSeats (GetSectorRequest) returns (GetSectorWithSeatsResponse);
     // Получение секторов для конкретной арены
     rpc ListSectorsByArena (ListSectorsRequest) returns (ListSectorsResponse);
     // Обновление сектора
@@ -18,7 +21,12 @@ service SectorService {
 message CreateSectorRequest {
     string name = 1;
     string arena_id = 2;
+    // layout используется только при mode = RESERVED (места по раскладке рядов).
     repeated RowLayout layout = 3;
+    // По умолчанию RESERVED (0) — обычный сектор с конкретными местами.
+    SectorMode mode = 4;
+    // Обязателен при mode = GENERAL_ADMISSION, иначе игнорируется.
+    optional int32 capacity = 5;
 }
 
 message CreateSectorResponse {
@@ -33,6 +41,12 @@ message GetSectorResponse {
     Sector sector = 1;
 }
 
+message GetSectorWithSeatsResponse {
+    Sector sector = 1;
+    // Актуально только для mode = RESERVED; для GENERAL_ADMISSION — пустой список.
+    repeated RowLayout layout = 2;
+}
+
 message ListSectorsRequest {
     string arena_id = 1;
 }
@@ -44,7 +58,14 @@ message ListSectorsResponse {
 message UpdateSectorRequest {
     string id = 1;
     string name = 2;
+    // Используется только для секторов с mode = RESERVED.
     repeated RowLayout layout = 3;
+    // Используется только для секторов с mode = GENERAL_ADMISSION.
+    // Режим сектора (mode) неизменяем после создания — здесь его нет
+    // намеренно: смена режима постфактум означала бы либо удаление уже
+    // созданных мест, либо потерю данных о capacity, и требует отдельного
+    // явного решения, а не безусловной перезаписи через Update.
+    optional int32 capacity = 4;
 }
 
 message UpdateSectorResponse {
@@ -59,10 +80,20 @@ message DeleteSectorResponse {
     bool success = 1;
 }
 
+// RESERVED — сектор с конкретными местами (продажа привязана к seatId).
+// GENERAL_ADMISSION — сектор без конкретных мест, продажа идёт по
+// количеству (capacity), например фан-зона на 5000 билетов без рассадки.
+enum SectorMode {
+    RESERVED = 0;
+    GENERAL_ADMISSION = 1;
+}
+
 message Sector {
     string id = 1;
     string name = 2;
     string arena_id = 3;
+    SectorMode mode = 4;
+    optional int32 capacity = 5;
 }
 
 message RowLayout {
