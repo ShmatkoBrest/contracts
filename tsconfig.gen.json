@@ -1,0 +1,14 @@
+{
+  "compilerOptions": {
+    "module": "commonjs",
+    "target": "es2020",
+    "declaration": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "strict": false,
+    "outDir": "./gen/ts",
+    "rootDir": "./gen/ts"
+  },
+  "include": ["gen/ts/**/*.ts"],
+  "exclude": ["node_modules", "dist", "test"]
+}

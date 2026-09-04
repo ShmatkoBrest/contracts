@@ -25,11 +25,11 @@ jobs:
       - name: Install deps
         run: npm install --frozen-lockfile
 
-      - name: Build
-        run: npm run build
-
       - name: Generate TS Protobuf
         run: npm run generate
+
+      - name: Build
+        run: npm run build
 
       - name: Publich package
         run: npm publish

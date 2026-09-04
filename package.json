@@ -1,10 +1,11 @@
 {
   "name": "@usteam/contracts",
-  "version": "2.0.1",
+  "version": "2.0.0",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
+    "build:gen": "tsc -p tsconfig.gen.json",
+    "build": "npm run build:gen && tsc -p tsconfig.build.json",
     "generate": "npx protoc -I ./proto ./proto/*.proto --ts_proto_out=./gen/ts --ts_proto_opt=nestJs=true,package=omit"
   },
   "files": [
