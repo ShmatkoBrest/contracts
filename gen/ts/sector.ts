@@ -99,7 +99,6 @@ export interface RowLayout {
   row: number;
   columns: number;
   type: string;
-  price: number;
 }
 
 export const SECTOR_V1_PACKAGE_NAME = "sector.v1";

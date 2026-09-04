@@ -31,7 +31,6 @@ export interface Seat {
   id: string;
   row: number;
   number: number;
-  price: number;
   status: string;
   type: string;
   sectorId: string;

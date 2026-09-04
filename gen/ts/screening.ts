@@ -101,7 +101,6 @@ export interface Sector {
 
 export interface SeatType {
   type: string;
-  price: number;
 }
 
 export const SCREENING_V1_PACKAGE_NAME = "screening.v1";

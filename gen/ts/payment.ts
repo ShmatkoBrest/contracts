@@ -85,7 +85,6 @@ export interface PaymentMethodItem {
 
 export interface SeatInput {
   seatId: string;
-  price: number;
 }
 
 export const PAYMENT_V1_PACKAGE_NAME = "payment.v1";

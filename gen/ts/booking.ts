@@ -22,6 +22,8 @@ export interface CreateReservationRequest {
   userId: string;
   screeningId: string;
   seats: SeatInput[];
+  audienceCode?: string | undefined;
+  promoCode?: string | undefined;
 }
 
 export interface CreateReservationResponse {
@@ -32,7 +34,6 @@ export interface CreateReservationResponse {
 
 export interface SeatInput {
   seatId: string;
-  price: number;
 }
 
 export interface ConfirmBookingRequest {
