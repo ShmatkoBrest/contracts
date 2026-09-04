@@ -91,5 +91,4 @@ message PaymentMethodItem {
 
 message SeatInput {
     string seat_id = 1;
-    int32 price = 2;
 }

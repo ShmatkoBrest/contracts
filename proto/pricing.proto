@@ -1,0 +1,244 @@
+syntax = "proto3";
+
+package pricing.v1;
+
+import "google/protobuf/timestamp.proto";
+
+service PricingService {
+    // Главный метод сервиса — расчёт итоговой цены билета с учётом базовой
+    // цены сектора, индивидуального оверрайда места, применимых правил
+    // (скидки/наценки/фиксированная цена) и промокода. Результат расчёта
+    // сохраняется как PriceSnapshot (аудит) — snapshot_id возвращается
+    // в ответе и в дальнейшем передаётся в booking-service при создании
+    // билета.
+    rpc CalculatePrice (CalculatePriceRequest) returns (CalculatePriceResponse);
+
+    // Базовая цена сектора на конкретный сеанс
+    rpc SetPriceTemplate (SetPriceTemplateRequest) returns (PriceTemplate);
+    rpc GetPriceTemplate (GetPriceTemplateRequest) returns (PriceTemplate);
+
+    // Индивидуальная цена конкретного места на конкретный сеанс
+    rpc SetSeatPriceOverride (SetSeatPriceOverrideRequest) returns (SeatPriceOverride);
+    rpc DeleteSeatPriceOverride (DeleteSeatPriceOverrideRequest) returns (DeleteResponse);
+
+    // Правила ценообразования (скидки/наценки/фикс. цена + область
+    // действия + условия применения)
+    rpc CreatePricingRule (CreatePricingRuleRequest) returns (PricingRule);
+    rpc UpdatePricingRule (UpdatePricingRuleRequest) returns (PricingRule);
+    rpc DeletePricingRule (DeletePricingRuleRequest) returns (DeleteResponse);
+    rpc ListPricingRules (ListPricingRulesRequest) returns (ListPricingRulesResponse);
+
+    // Промокоды
+    rpc CreatePromoCode (CreatePromoCodeRequest) returns (PromoCode);
+    rpc DeactivatePromoCode (DeactivatePromoCodeRequest) returns (PromoCode);
+
+    // Аудитории (категории покупателей — студент, пенсионер и т.п.)
+    rpc CreateAudience (CreateAudienceRequest) returns (Audience);
+    rpc ListAudiences (ListAudiencesRequest) returns (ListAudiencesResponse);
+}
+
+// ===== CalculatePrice =====
+
+message CalculatePriceRequest {
+    string screening_id = 1;
+    string sector_id = 2;
+    // Пусто для GENERAL_ADMISSION-секторов без конкретных мест.
+    optional string seat_id = 3;
+    string user_id = 4;
+    optional string audience_code = 5;
+    optional string promo_code = 6;
+    // Кол-во билетов в этом расчёте (для условий вида ticket_count >= 3
+    // и для GENERAL_ADMISSION, где нет отдельного seat_id на каждый билет).
+    int32 quantity = 7;
+    // Момент "покупки" для условий вида purchase_date <= X (Early Bird
+    // и т.п.). Если не передан — используется текущее время сервера.
+    optional google.protobuf.Timestamp purchase_date = 8;
+}
+
+message CalculatePriceResponse {
+    double base_price = 1;
+    double discount = 2;
+    double surcharge = 3;
+    double final_price = 4;
+    repeated AppliedRule rules = 5;
+    // id созданного PriceSnapshot — передаётся в booking-service при
+    // создании билета для последующей трассируемости расчёта.
+    string snapshot_id = 6;
+}
+
+message AppliedRule {
+    string name = 1;
+    double amount = 2;
+}
+
+// ===== PriceTemplate =====
+
+message SetPriceTemplateRequest {
+    string screening_id = 1;
+    string sector_id = 2;
+    double base_price = 3;
+}
+
+message GetPriceTemplateRequest {
+    string screening_id = 1;
+    string sector_id = 2;
+}
+
+message PriceTemplate {
+    string id = 1;
+    string screening_id = 2;
+    string sector_id = 3;
+    double base_price = 4;
+}
+
+// ===== SeatPriceOverride =====
+
+message SetSeatPriceOverrideRequest {
+    string screening_id = 1;
+    string seat_id = 2;
+    double price = 3;
+}
+
+message DeleteSeatPriceOverrideRequest {
+    string screening_id = 1;
+    string seat_id = 2;
+}
+
+message SeatPriceOverride {
+    string id = 1;
+    string screening_id = 2;
+    string seat_id = 3;
+    double price = 4;
+}
+
+// ===== PricingRule =====
+
+enum RuleType {
+    DISCOUNT = 0;
+    SURCHARGE = 1;
+    FIXED_PRICE = 2;
+}
+
+enum ValueType {
+    PERCENT = 0;
+    FIXED = 1;
+}
+
+message PricingRuleScopeInput {
+    optional string screening_id = 1;
+    optional string sector_id = 2;
+    optional string seat_id = 3;
+}
+
+message PricingRuleConditionInput {
+    // Поддерживаемые поля: purchase_date, ticket_count, audience.
+    string field = 1;
+    // Поддерживаемые операторы: EQ, NEQ, GT, GTE, LT, LTE, IN.
+    string operator = 2;
+    string value = 3;
+}
+
+message CreatePricingRuleRequest {
+    optional string code = 1;
+    string name = 2;
+    int32 priority = 3;
+    RuleType rule_type = 4;
+    ValueType value_type = 5;
+    double value = 6;
+    bool combinable = 7;
+    optional google.protobuf.Timestamp valid_from = 8;
+    optional google.protobuf.Timestamp valid_to = 9;
+    repeated PricingRuleScopeInput scopes = 10;
+    repeated PricingRuleConditionInput conditions = 11;
+}
+
+message UpdatePricingRuleRequest {
+    string id = 1;
+    optional string name = 2;
+    optional bool active = 3;
+    optional int32 priority = 4;
+    optional double value = 5;
+    optional bool combinable = 6;
+    optional google.protobuf.Timestamp valid_from = 7;
+    optional google.protobuf.Timestamp valid_to = 8;
+}
+
+message DeletePricingRuleRequest {
+    string id = 1;
+}
+
+message ListPricingRulesRequest {
+    optional bool active_only = 1;
+}
+
+message ListPricingRulesResponse {
+    repeated PricingRule rules = 1;
+}
+
+message PricingRule {
+    string id = 1;
+    optional string code = 2;
+    string name = 3;
+    bool active = 4;
+    int32 priority = 5;
+    RuleType rule_type = 6;
+    ValueType value_type = 7;
+    double value = 8;
+    bool combinable = 9;
+    optional google.protobuf.Timestamp valid_from = 10;
+    optional google.protobuf.Timestamp valid_to = 11;
+    repeated PricingRuleScopeInput scopes = 12;
+    repeated PricingRuleConditionInput conditions = 13;
+}
+
+// ===== PromoCode =====
+
+message CreatePromoCodeRequest {
+    string code = 1;
+    string rule_id = 2;
+    bool unlimited = 3;
+    optional int32 usage_limit = 4;
+    optional google.protobuf.Timestamp valid_from = 5;
+    optional google.protobuf.Timestamp valid_to = 6;
+}
+
+message DeactivatePromoCodeRequest {
+    string code = 1;
+}
+
+message PromoCode {
+    string id = 1;
+    string code = 2;
+    string rule_id = 3;
+    bool active = 4;
+    bool unlimited = 5;
+    optional int32 usage_limit = 6;
+    int32 used_count = 7;
+    optional google.protobuf.Timestamp valid_from = 8;
+    optional google.protobuf.Timestamp valid_to = 9;
+}
+
+// ===== Audience =====
+
+message CreateAudienceRequest {
+    string code = 1;
+    string title = 2;
+}
+
+message ListAudiencesRequest {}
+
+message ListAudiencesResponse {
+    repeated Audience audiences = 1;
+}
+
+message Audience {
+    string id = 1;
+    string code = 2;
+    string title = 3;
+}
+
+// ===== Общее =====
+
+message DeleteResponse {
+    bool ok = 1;
+}

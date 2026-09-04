@@ -20,43 +20,44 @@
 ## Структура
 
 ```
-proto/                      # единственный источник истины — .proto-файлы всех сервисов
+proto/
 ├── auth.proto                 # auth-service: OTP, refresh, Telegram-флоу
 ├── account.proto                # auth-service: аккаунт, смена email/телефона, Role enum
 ├── users.proto                    # users-service: профиль (GetMe/CreateUser/PatchUser)
 ├── media.proto                      # media-service: Upload/Get/Delete файлов в S3
 ├── arena.proto                        # arena-service: CRUD арен
-├── sector.proto                         # arena-service: CRUD секторов + RowLayout
-├── seat.proto                             # arena-service: чтение мест
+├── sector.proto                         # arena-service: CRUD секторов + RowLayout (без price, см. историю)
+├── seat.proto                             # arena-service: чтение мест (без price, см. историю)
 ├── event.proto                              # event-service: CRUD событий
 ├── category.proto                             # event-service: CRUD категорий
-├── organizer.proto                              # event-service (план): CRUD организаторов — новое
-├── performer.proto                                # event-service (план): CRUD исполнителей — новое
-├── screening.proto                                  # screening-service: CRUD сеансов
-├── booking.proto                                      # booking-service: брони, билеты
-├── payment.proto                                        # payment-service: платежи, методы оплаты
-└── refund.proto                                            # payment-service: возвраты
+├── organizer.proto                              # event-service: CRUD организаторов
+├── performer.proto                                # event-service: CRUD исполнителей
+├── screening.proto                                  # screening-service: CRUD сеансов (SeatType без price, см. историю)
+├── booking.proto                                      # booking-service: брони, билеты (SeatInput без price, см. историю)
+├── payment.proto                                        # payment-service: платежи, методы оплаты (SeatInput без price, см. историю)
+├── refund.proto                                           # payment-service: возвраты
+└── pricing.proto                                            # pricing-service: расчёт цены билета — новое
 
 gen/
-├── ts/                     # генерируется при publish (npm run generate), в репозитории пусто (только .gitkeep)
-└── go/media/                # сгенерированные Go-типы для media.proto (единственный закоммиченный gen-код)
+├── ts/                     # генерируется при publish (npm run generate), в репозитории пусто
+└── go/media/                # сгенерированные Go-типы для media.proto
 
 src/
 ├── proto/
-│   ├── paths.ts               # PROTO_PATHS — абсолютные пути ко всем .proto-файлам, включая ORGANIZER/PERFORMER
+│   ├── paths.ts               # PROTO_PATHS, включая PRICING
 │   └── index.ts
 ├── events/
-│   ├── auth/otp-requested.interface.ts     # OtpRequestedEvent {identifier, type, code}
-│   ├── account/email-changed.ts              # EmailChangedEvent {email, code}
-│   ├── account/phone-changed.ts                # PhoneChangedEvent {phone, code}
+│   ├── auth/otp-requested.interface.ts
+│   ├── account/email-changed.ts
+│   ├── account/phone-changed.ts
 │   └── index.ts
-└── index.ts                 # экспортирует и proto, и events
+└── index.ts
 
-scripts/generate_go.sh     # генерация Go-кода конкретно для media.proto
-README.md                   # добавлен — краткая инструкция по установке/генерации/добавлению контрактов
+scripts/generate_go.sh
+README.md
 ```
 
-`dist/` больше не хранится в рабочей копии пакета (см. историю изменений) — он и так был в `.gitignore` и пересобирается перед каждой публикацией в CI.
+`dist/` не хранится в рабочей копии пакета — пересобирается перед каждой публикацией в CI.
 
 ## gRPC-сервисы по `.proto`-файлам
 
@@ -67,99 +68,82 @@ README.md                   # добавлен — краткая инструк
 | `users.proto` | `users.v1` | `UsersService` | `GetMe`, `CreateUser`, `PatchUser` |
 | `media.proto` | `media.v1` | `MediaService` | `Upload`, `Get`, `Delete` |
 | `arena.proto` | `arena.v1` | `ArenaService` | `ListArenas`, `GetArena`, `CreateArena`, `UpdateArena`, `DeleteArena` |
-| `sector.proto` | `sector.v1` | `SectorService` | `CreateSector`, `GetSector`, `ListSectorsByArena`, `UpdateSector`, `DeleteSector` |
+| `sector.proto` | `sector.v1` | `SectorService` | `CreateSector`, `GetSector`, `GetSectorWithSeats`, `ListSectorsByArena`, `UpdateSector`, `DeleteSector`; enum `SectorMode {RESERVED, GENERAL_ADMISSION}` |
 | `seat.proto` | `seat.v1` | `SeatService` | `GetSeat`, `ListSeatsBySector` |
 | `event.proto` | `event.v1` | `EventService` | `ListEvents`, `GetEvents`, `CreateEvent`, `UpdateEvent`, `DeleteEvent` |
 | `category.proto` | `category.v1` | `CategoryService` | `GetAllCategories`, `CreateCategory`, `UpdateCategory`, `DeleteCategory` |
-| **`organizer.proto`** | `organizer.v1` | `OrganizerService` | `ListOrganizers`, `GetOrganizer`, `CreateOrganizer`, `UpdateOrganizer`, `DeleteOrganizer` — **новое** |
-| **`performer.proto`** | `performer.v1` | `PerformerService` | `ListPerformers`, `GetPerformer`, `CreatePerformer`, `UpdatePerformer`, `DeletePerformer` — **новое** |
+| `organizer.proto` | `organizer.v1` | `OrganizerService` | `ListOrganizers`, `GetOrganizer`, `CreateOrganizer`, `UpdateOrganizer`, `DeleteOrganizer` |
+| `performer.proto` | `performer.v1` | `PerformerService` | `ListPerformers`, `GetPerformer`, `CreatePerformer`, `UpdatePerformer`, `DeletePerformer` |
 | `screening.proto` | `screening.v1` | `ScreeningService` | `CreateScreening`, `GetScreenings`, `GetScreeningsByEvent`, `GetScreening`, `UpdateScreening`, `DeleteScreening` |
 | `booking.proto` | `booking.v1` | `BookingService` | `GetUserBookings`, `CreateReservation`, `ConfirmBooking`, `CancelBooking`, `ListReservedSeats` |
 | `payment.proto` | `payment.v1` | `PaymentService` | `CreatePayment`, `ProcessPaymentEvent`, `GetUserPaymentMethods`, `CreatePaymentMethod`, `VerifyPaymentMethod`, `DeletePaymentMethod` |
 | `refund.proto` | `refund.v1` | `RefundService` | `CreateRefund`, `ProcessRefundEvent` |
+| **`pricing.proto`** | `pricing.v1` | `PricingService` | `CalculatePrice` (главный), `SetPriceTemplate`, `GetPriceTemplate`, `SetSeatPriceOverride`, `DeleteSeatPriceOverride`, `CreatePricingRule`, `UpdatePricingRule`, `DeletePricingRule`, `ListPricingRules`, `CreatePromoCode`, `DeactivatePromoCode`, `CreateAudience`, `ListAudiences` — **новое** |
 
-## Новые контракты: Organizer и Performer
+## Новый контракт: Pricing
 
-Оба добавлены по образцу `arena.proto` (полный CRUD + получение по id + список), с идентичной структурой полей — организаторы и исполнители моделируются одинаково:
+`pricing.proto` — контракт для нового `pricing-service`. Главный метод — `CalculatePrice`, принимает `screening_id`/`sector_id`/`seat_id`/`user_id`/`audience_code`/`promo_code`/`quantity`/`purchase_date`, возвращает `base_price`/`discount`/`surcharge`/`final_price`/`rules`/`snapshot_id`. Остальные методы — административный CRUD для шаблонов цен, правил ценообразования (с вложенными `PricingRuleScopeInput`/`PricingRuleConditionInput`), промокодов и аудиторий. Подробности — в документации самого `pricing-service`.
 
-```proto
-message Organizer {   // и, аналогично, Performer
-    string id          = 1;
-    string title       = 2;
-    string description = 3;
-    string image        = 4;
-}
-```
+## Breaking change: `price` убран из четырёх контрактов
 
-- **Методы**: `Create*`, `Update*`, `Get*` (по id), `Delete*`, `List*` — везде обёртки-обёртки `*Request`/`*Response`, как в `arena.proto`, а не "голые" сообщения напрямую в `rpc`, для единообразия и возможности расширения запроса в будущем без breaking change.
-- **Пакеты**: `organizer.v1`, `performer.v1` — отдельные от `event.v1`/`category.v1`, хотя по плану обе сущности будут жить в `event-service` (аналогично тому, как `arena.v1`/`sector.v1`/`seat.v1` — три разных пакета, отдаваемых одним `arena-service`).
-- Добавлены в `PROTO_PATHS` (`ORGANIZER`, `PERFORMER`), рядом с `EVENT`/`CATEGORY`.
-- **Не добавлены** (пока, до появления реализации в `event-service`): регистрация в реестре `GRPC_CLIENTS` пакета `@usteam/common` — это отдельный npm-пакет, туда нужен отдельный проход после того, как `event-service` реализует эти контракты (см. раздел "Требует внимания" ниже).
+С появлением `pricing-service` цена перестаёт быть статичным атрибутом места/раскладки/типа мест и становится результатом динамического расчёта. Поле `price` удалено из:
+
+- **`seat.proto`**: сообщение `Seat` (было `id, row, number, price, status, type, sector_id` → стало без `price`).
+- **`sector.proto`**: сообщение `RowLayout` (было `row, columns, type, price` → стало без `price`; раскладка теперь только про структуру, не про цену).
+- **`screening.proto`**: сообщение `SeatType` (было `type, price` → стало только `type`).
+- **`booking.proto`** и **`payment.proto`**: сообщение `SeatInput` (было `seat_id, price` → стало только `seat_id`) — вызывающая сторона (`gateway-service`) больше не передаёt цену при бронировании, её вычисляет `booking-service` через `Pricing.CalculatePrice`.
+
+Это **breaking change для всех потребителей** этих сообщений — версия пакета поднята с `1.9.0` до `2.0.0`. Сервисы, уже перенесённые на новый контракт: `arena-service` (`Seat.price` убран полностью из БД/domain), `booking-service` (`Ticket.price` → `basePrice`/`finalPrice`/`pricingSnapshotId`). Подробности в их документации.
 
 ## Важные детали контрактов (сверено с реализацией сервисов)
 
-- **`event.proto`: метод действительно называется `GetEvents`** (не `GetEvent`), несмотря на то, что запрос/ответ единичные (`GetEventRequest → GetEventResponse`, с полем `event`, не `events`). Это осознанно так задано в самом контракте, а не баг сервиса.
-- **`seat.proto`: сообщение `Seat` не содержит `x`/`y`** (координаты места) — только `id, row, number, price, status, type, sector_id`. В `arena-service` эти координаты есть в Prisma-модели, но по контракту наружу не отдаются.
-- **`seat.proto`: `Seat.status`** — вычисляемое поле, заполняется только в `ListSeatsUsecase` (`arena-service`) после сверки с `booking-service`; у `GetSeat` такого обогащения нет.
-- **`screening.proto`: поле называется `seat_type`** (единственное число) — camelCase `seatType`, а не `seatTypes`.
-- **`media.proto` определяет `Get` и `Delete`** как полноценные RPC-методы — контракт ожидает их, `media-service` пока реализует только `Upload`.
-- **`booking.proto`/`payment.proto`: сообщение `SeatInput` продублировано** в обоих файлах с идентичной структурой (`seat_id`, `price`) — независимые пакеты, синхронизировать вручную при изменениях.
+- **`event.proto`: метод действительно называется `GetEvents`** (не `GetEvent`), несмотря на единичный ответ — осознанно так задано в контракте.
 - **`account.proto`: `Role` enum** (`USER=0, ADMIN=1, EDITOR=2, CASHIER=3`) — порядковые номера менять нельзя, только добавлять новые в конец.
+- **`sector.proto`: `SectorMode` enum** (`RESERVED=0, GENERAL_ADMISSION=1`) — `RESERVED`-секторы имеют конкретные места (`RowLayout`), `GENERAL_ADMISSION` — только `capacity` без мест (например, фан-зона). Режим неизменяем после создания — намеренно отсутствует в `UpdateSectorRequest`.
+
+## ⚠️ Представление enum на wire-уровне — не гарантированно единообразно
+
+При разработке `pricing-service` обнаружилось: то, как `@grpc/proto-loader` представляет значения proto3 `enum` в JS (число или строка-имя константы), зависит от опции `enums` в конфигурации загрузчика **конкретной стороны** (сервер/клиент), а не задаётся самим контрактом. Часть сервисов платформы настраивает `enums: String` явно (`arena-service`'s `main.ts`), часть полагается на конфигурацию по умолчанию через `@usteam/common`'s `GrpcModule` (без явного `loader`). При этом **`ts-proto` всегда генерирует числовые TS-типы** для enum-полей независимо от этой рантайм-конфигурации — то есть тип поля не гарантирует, что там реально окажется число.
+
+Прямое сравнение входящего enum-значения с числовой константой (например, `data.mode === SectorModeProto.GENERAL_ADMISSION`) может **молча давать неверный результат** на стороне, где loader представил значение строкой. Это уже приводило к реальному багу в `gateway-service` (`RolesGuard` сравнивал роль без нормализации). Решение — новая утилита `protoEnumToDomain` в `@usteam/common`, устойчивая к обоим представлениям; используется на **входящей** стороне для всех enum-полей контрактов, где это уже обнаружено (`SectorMode`, `RuleType`, `ValueType`, `Role`). Полный аудит платформы на предмет остальных enum-полей (например, статусов в других контрактах) не проводился — это открытая задача.
 
 ## Асинхронные события (RabbitMQ, `src/events`)
 
 | Интерфейс | Поля | Публикует | Потребляет |
 |---|---|---|---|
-| `OtpRequestedEvent` | `identifier, type, code` | `auth-service` (`auth.otp.requested`) | `notification-service` |
-| `EmailChangedEvent` | `email, code` | `auth-service` (`account.email.changed`) | `notification-service` |
-| `PhoneChangedEvent` | `phone, code` | `auth-service` (`account.phone.changed`) | `notification-service` |
-
-Это обычные TS-интерфейсы (не protobuf/AsyncAPI) — типобезопасность обеспечивается только на уровне TypeScript-компиляции внутри каждого сервиса, где эти типы явно импортируются; сам по себе брокер (RabbitMQ) формат сообщения не проверяет.
+| `OtpRequestedEvent` | `identifier, type, code` | `auth-service` | `notification-service` |
+| `EmailChangedEvent` | `email, code` | `auth-service` | `notification-service` |
+| `PhoneChangedEvent` | `phone, code` | `auth-service` | `notification-service` |
 
 ## Использование в сервисах
 
-- **NestJS-сервисы** импортируют сгенерированные типы напрямую из подпутей пакета, например `@usteam/contracts/gen/ts/arena`, `@usteam/contracts/gen/ts/account` — типы, сгенерированные `ts-proto`, физически появляются в пакете только после `npm run generate` на этапе публикации (в самом репозитории `gen/ts` пуст).
-- **`PROTO_PATHS`** используется там, где gRPC-соединение строится вручную через `@grpc/proto-loader` (`loadSync`) вместо декларативного `ClientsModule` NestJS — например, в `bot-service`.
-- **Go-сервис (`media-service`)** импортирует пакет как `github.com/ShmatkoBrest/contracts/gen/go/media` — только *media*, так как Go-генерация настроена исключительно на `media.proto`.
+- **NestJS-сервисы** импортируют сгенерированные типы напрямую из подпутей пакета, например `@usteam/contracts/gen/ts/pricing`.
+- **`PROTO_PATHS`** используется там, где gRPC-соединение строится вручную через `@grpc/proto-loader` (например, `bot-service`).
+- **Go-сервис (`media-service`)** — единственный потребитель `gen/go`.
 
 ## Публикация
 
-- **npm** (`.github/workflows/publish-npm.yml`): при пуше в `main` — установка `protoc`, `npm install`, `npm run build`, `npm run generate`, `npm publish`.
-- **Go** (`.github/workflows/publish-go.yml`) — отдельный воркфлоу, генерация/публикация Go-модуля.
+- **npm**: при пуше в `main` — `protoc`, `npm install`, `npm run build`, `npm run generate`, `npm publish`.
+- **Go** — отдельный воркфлоу, генерация/публикация Go-модуля.
 
 ## Запуск/разработка локально
 
 ```bash
 npm install
-npm run generate     # protoc + ts-proto → gen/ts (требует установленного protoc)
+npm run generate     # protoc + ts-proto → gen/ts
 npm run build          # tsc -p tsconfig.build.json → dist/
-```
-
-Для Go-части:
-```bash
-./scripts/generate_go.sh    # регенерирует gen/go для media.proto
 ```
 
 ## История изменений
 
-| Замечание | Статус |
+| Дата/повод | Что изменилось |
 |---|---|
-| **Приватный SSH-ключ в репозитории** (`git push`/`git push.pub`) | ✅ Файлы удалены из рабочей копии. В `.gitignore` добавлены паттерны приватных ключей (`id_rsa`, `id_ed25519`, `*.pem`, `*.key` и т.п.), чтобы это не повторилось. **⚠️ Требует ручного действия, которое я не могу выполнить**: удаление файла из истории git недостаточно — нужно вычистить историю (`git filter-repo`/BFG) и **отозвать сам ключ** везде, где он мог быть авторизован (серверы, deploy keys, CI-секреты), поскольку он уже считается скомпрометированным. |
-| Устаревший `dist/` в архиве (расходился с `src`, хотя и так в `.gitignore`) | ✅ Удалён из рабочей копии — пересобирается в CI перед каждой публикацией. |
-| `users.proto`: комментарий над `PatchUser` дословно скопирован с `CreateUser` | ✅ Исправлено — заменён на корректное описание метода. |
-| `account.proto`: опечатка `Responce` вместо `Response` в четырёх именах сообщений | ✅ Исправлено во всех четырёх местах (`InitEmailChangeResponse`, `ConfirmEmailChangeResponse`, `InitPhoneChangeResponse`, `ConfirmPhoneChangeResponse`). Это переименование сгенерированных TS-типов, поэтому синхронно обновлён единственный найденный потребитель по имени типа — `auth-service` (`src/modules/account/account.controller.ts`). `gateway-service` и остальные сервисы явных ссылок на эти имена типов не содержат — их не потребовалось трогать. |
-| Отсутствовал `README.md` пакета | ✅ Добавлен — установка, генерация, структура, порядок добавления нового контракта, предупреждения про breaking changes. |
-| Go-генерация закоммичена только для `media.proto` | ℹ️ Не менялось — актуально только при появлении новых Go-сервисов. |
-
-## Новое: добавлены контракты Organizer и Performer
-
-- `proto/organizer.proto`, `proto/performer.proto` — см. раздел выше.
-- `PROTO_PATHS` дополнен полями `ORGANIZER`, `PERFORMER`.
-- Версия пакета поднята: `1.6.6` → `1.7.0`.
-
-## Требует внимания перед использованием
-
-- **Регистрация в `@usteam/common`**: `GRPC_CLIENTS`-реестр (`lib/grpc/registry/grpc.registry.ts` в пакете `@usteam/common`) пока **не** содержит записей `ORGANIZER_PACKAGE`/`PERFORMER_PACKAGE`. Это отдельный npm-пакет — правки в него не входили в объём этой задачи (только `contracts`). Добавить туда записи стоит одновременно с реализацией `event-service`, аналогично тому, как там уже сделано для `EVENT_PACKAGE`/`CATEGORY_PACKAGE` (тот же `EVENT_GRPC_URL`).
-- **Реализация в `event-service`**: контракты добавлены только на уровне `.proto` — самого `OrganizerService`/`PerformerService` в `event-service` (и в `gateway-service` как HTTP-обёртки) пока нет. Контракт — это форма, реализация ожидается отдельным шагом, когда до этого дойдёт очередь по плану рефакторинга `event-service`.
-- **`npm run generate`/`npm run build` не выполнялись** — как и раньше, для проверки актуальности сгенерированных типов нужен локальный `protoc` и реальный прогон. Синтаксис `.proto`-файлов не проверен парсером `protoc`, только вручную по аналогии с существующими файлами.
-- **Отзыв скомпрометированного SSH-ключа** — см. таблицу выше, единственное действие, требующее ручного вмешательства вне кода.
+| Приватный SSH-ключ в репозитории | ✅ Удалён из рабочей копии, `.gitignore` дополнен паттернами приватных ключей |
+| Устаревший `dist/` в архиве | ✅ Удалён |
+| `users.proto`: скопированный комментарий над `PatchUser` | ✅ Исправлен |
+| `account.proto`: опечатка `Responce` → `Response` (4 сообщения) | ✅ Исправлено, синхронно обновлён `auth-service` |
+| Отсутствовал `README.md` | ✅ Добавлен |
+| Добавлены `organizer.proto`/`performer.proto` | ✅ Версия `1.7.0` |
+| `event.proto` дополнен `organizer_id`/`performer_ids` (+`PerformerIdList`) | ✅ Версия `1.8.0` |
+| `sector.proto`: добавлены `SectorMode`, `capacity`, `rpc GetSectorWithSeats` | ✅ Версия `1.9.0` |
+| **Появление `pricing-service`**: новый `pricing.proto`; `price` убран из `seat.proto`/`sector.proto` (`RowLayout`)/`screening.proto` (`SeatType`)/`booking.proto`+`payment.proto` (`SeatInput`) | ✅ Версия `2.0.0` (breaking change) |

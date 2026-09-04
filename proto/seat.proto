@@ -31,8 +31,7 @@ message Seat {
     string id = 1;
     int32 row = 2;
     int32 number = 3;
-    int32 price = 4;
-    string status = 5;
-    string type = 6;
-    string sector_id = 7;
+    string status = 4;
+    string type = 5;
+    string sector_id = 6;
 }

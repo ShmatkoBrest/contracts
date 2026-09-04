@@ -108,5 +108,4 @@ message Sector {
 
 message SeatType {
     string type = 1;
-    int32 price = 2;
 }
