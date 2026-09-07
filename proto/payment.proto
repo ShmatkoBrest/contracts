@@ -5,6 +5,8 @@ package payment.v1;
 service PaymentService {
   // Создание платежа
   rpc CreatePayment (CreatePaymentRequest) returns (CreatePaymentResponse);
+  // Статус платежа по брони (для экрана /checkout/result — фронт поллит)
+  rpc GetPaymentByBooking (GetPaymentByBookingRequest) returns (PaymentStatus);
   // Обработка  (начисление брони) от платежной системы
   rpc ProcessPaymentEvent (ProcessPaymentEventRequest) returns (ProcessPaymentEventResponse);
   //
@@ -39,6 +41,24 @@ message CreatePaymentRequest {
 }
 message CreatePaymentResponse {
   string url = 1;
+  // id брони/заказа — фронт использует для опроса статуса после возврата
+  // от платёжного провайдера.
+  string booking_id = 2;
+}
+
+message GetPaymentByBookingRequest {
+  string booking_id = 1;
+  string user_id = 2;
+}
+
+message PaymentStatus {
+  string id = 1;
+  string booking_id = 2;
+  int32  amount = 3;
+  // pending | succeeded | canceled | failed
+  string status = 4;
+  // Ссылка на форму оплаты (актуальна, пока status = pending).
+  string url = 5;
 }
 
 message ProcessPaymentEventRequest {
