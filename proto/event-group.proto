@@ -1,0 +1,66 @@
+syntax = "proto3";
+
+package event_group.v1;
+
+import "google/protobuf/empty.proto";
+
+// Сервис для работы с группами мероприятий (например, "Сезон 2026" клуба) —
+// используется subscription-service для привязки абонементов к серии
+// событий одного клуба/турнира.
+service EventGroupService {
+    // получение списка групп мероприятий
+    rpc ListEventGroups (google.protobuf.Empty) returns (ListEventGroupsResponse);
+    // получение группы по id
+    rpc GetEventGroup (GetEventGroupRequest) returns (GetEventGroupResponse);
+    // создание группы
+    rpc CreateEventGroup (CreateEventGroupRequest) returns (CreateEventGroupResponse);
+    // обновление группы
+    rpc UpdateEventGroup (UpdateEventGroupRequest) returns (UpdateEventGroupResponse);
+    // удаление группы
+    rpc DeleteEventGroup (DeleteEventGroupRequest) returns (DeleteEventGroupResponse);
+}
+
+message ListEventGroupsResponse {
+    repeated EventGroup eventGroups = 1;
+}
+
+message GetEventGroupRequest {
+    string id = 1;
+}
+
+message GetEventGroupResponse {
+    EventGroup eventGroup = 1;
+}
+
+message CreateEventGroupRequest {
+    string title       = 1;
+    string description = 2;
+}
+
+message CreateEventGroupResponse {
+    EventGroup eventGroup = 1;
+}
+
+message UpdateEventGroupRequest {
+    string id          = 1;
+    string title       = 2;
+    string description = 3;
+}
+
+message UpdateEventGroupResponse {
+    EventGroup eventGroup = 1;
+}
+
+message DeleteEventGroupRequest {
+    string id = 1;
+}
+
+message DeleteEventGroupResponse {
+    bool ok = 1;
+}
+
+message EventGroup {
+    string id          = 1;
+    string title       = 2;
+    string description = 3;
+}

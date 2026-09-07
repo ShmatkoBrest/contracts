@@ -1,0 +1,183 @@
+syntax = "proto3";
+
+package subscription.v1;
+
+import "google/protobuf/timestamp.proto";
+
+service SubscriptionService {
+    // Планы абонементов
+    rpc CreateSubscriptionPlan (CreateSubscriptionPlanRequest) returns (SubscriptionPlan);
+    rpc UpdateSubscriptionPlan (UpdateSubscriptionPlanRequest) returns (SubscriptionPlan);
+    rpc DeleteSubscriptionPlan (DeleteSubscriptionPlanRequest) returns (DeleteResponse);
+    rpc GetSubscriptionPlan (GetSubscriptionPlanRequest) returns (SubscriptionPlan);
+    rpc ListSubscriptionPlans (ListSubscriptionPlansRequest) returns (ListSubscriptionPlansResponse);
+
+    // Абонементы пользователей
+    rpc PurchaseSubscription (PurchaseSubscriptionRequest) returns (PurchaseSubscriptionResponse);
+    rpc CancelSubscription (CancelSubscriptionRequest) returns (UserSubscription);
+    rpc GetUserSubscriptions (GetUserSubscriptionsRequest) returns (GetUserSubscriptionsResponse);
+    rpc GetSubscription (GetSubscriptionRequest) returns (UserSubscription);
+
+    // Доступ
+    rpc CheckSubscriptionAccess (CheckSubscriptionAccessRequest) returns (CheckSubscriptionAccessResponse);
+
+    // Бронирования по абонементам
+    rpc ReleaseSubscriptionSeat (ReleaseSubscriptionSeatRequest) returns (DeleteResponse);
+    rpc ListSubscriptionReservations (ListSubscriptionReservationsRequest) returns (ListSubscriptionReservationsResponse);
+}
+
+// ===== SubscriptionPlan =====
+
+enum SubscriptionType {
+    FIXED_SEAT = 0;
+    GENERAL_ADMISSION = 1;
+}
+
+message CreateSubscriptionPlanRequest {
+    string title = 1;
+    string description = 2;
+    SubscriptionType type = 3;
+    int32 price = 4;
+    repeated string event_group_ids = 5;
+}
+
+message UpdateSubscriptionPlanRequest {
+    string id = 1;
+    optional string title = 2;
+    optional string description = 3;
+    optional int32 price = 4;
+    optional bool active = 5;
+    // Отсутствие поля — не трогать список групп; EventGroupIdList с пустым
+    // ids — явно очистить список (тот же приём, что PerformerIdList
+    // в event.proto).
+    optional EventGroupIdList event_group_ids = 6;
+}
+
+message EventGroupIdList {
+    repeated string ids = 1;
+}
+
+message DeleteSubscriptionPlanRequest {
+    string id = 1;
+}
+
+message GetSubscriptionPlanRequest {
+    string id = 1;
+}
+
+message ListSubscriptionPlansRequest {
+    optional bool active_only = 1;
+}
+
+message ListSubscriptionPlansResponse {
+    repeated SubscriptionPlan plans = 1;
+}
+
+message SubscriptionPlan {
+    string id = 1;
+    string title = 2;
+    string description = 3;
+    SubscriptionType type = 4;
+    int32 price = 5;
+    bool active = 6;
+    repeated string event_group_ids = 7;
+}
+
+// ===== UserSubscription =====
+
+enum SubscriptionStatus {
+    PENDING = 0;
+    ACTIVE = 1;
+    EXPIRED = 2;
+    BLOCKED = 3;
+    CANCELED = 4;
+}
+
+message PurchaseSubscriptionRequest {
+    string user_id = 1;
+    string plan_id = 2;
+    // Обязательны для планов с type = FIXED_SEAT.
+    optional string seat_id = 3;
+    optional string sector_id = 4;
+}
+
+message PurchaseSubscriptionResponse {
+    string subscription_id = 1;
+    // Ссылка на форму оплаты у провайдера.
+    string url = 2;
+}
+
+message CancelSubscriptionRequest {
+    string id = 1;
+    string user_id = 2;
+}
+
+message GetUserSubscriptionsRequest {
+    string user_id = 1;
+}
+
+message GetUserSubscriptionsResponse {
+    repeated UserSubscription subscriptions = 1;
+}
+
+message GetSubscriptionRequest {
+    string id = 1;
+}
+
+message UserSubscription {
+    string id = 1;
+    string user_id = 2;
+    string plan_id = 3;
+    SubscriptionStatus status = 4;
+    optional google.protobuf.Timestamp valid_from = 5;
+    optional google.protobuf.Timestamp valid_to = 6;
+}
+
+// ===== Access =====
+
+message CheckSubscriptionAccessRequest {
+    string user_id = 1;
+    string event_id = 2;
+}
+
+message CheckSubscriptionAccessResponse {
+    bool has_access = 1;
+    optional string subscription_id = 2;
+}
+
+// ===== Reservations =====
+
+enum SubscriptionReservationStatus {
+    RESERVED = 0;
+    RELEASED = 1;
+    FAILED = 2;
+}
+
+message ReleaseSubscriptionSeatRequest {
+    string subscription_id = 1;
+    string screening_id = 2;
+    string user_id = 3;
+}
+
+message ListSubscriptionReservationsRequest {
+    string subscription_id = 1;
+    string user_id = 2;
+}
+
+message ListSubscriptionReservationsResponse {
+    repeated SubscriptionReservation reservations = 1;
+}
+
+message SubscriptionReservation {
+    string id = 1;
+    string subscription_id = 2;
+    string screening_id = 3;
+    optional string reservation_id = 4;
+    SubscriptionReservationStatus status = 5;
+}
+
+// ===== Общее =====
+
+message DeleteResponse {
+    bool ok = 1;
+}

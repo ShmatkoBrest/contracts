@@ -9,6 +9,7 @@ export const PROTO_PATHS = {
     CATEGORY: join(__dirname, '../../proto/category.proto'),
     ORGANIZER: join(__dirname, '../../proto/organizer.proto'),
     PERFORMER: join(__dirname, '../../proto/performer.proto'),
+    EVENT_GROUP: join(__dirname, '../../proto/event-group.proto'),
     ARENA: join(__dirname, '../../proto/arena.proto'),
     SECTOR: join(__dirname, '../../proto/sector.proto'),
     SEAT: join(__dirname, '../../proto/seat.proto'),
@@ -17,4 +18,5 @@ export const PROTO_PATHS = {
     REFUND: join(__dirname, '../../proto/refund.proto'),
     BOOKING: join(__dirname, '../../proto/booking.proto'),
     PRICING: join(__dirname, '../../proto/pricing.proto'),
+    SUBSCRIPTION: join(__dirname, '../../proto/subscription.proto'),
 } as const

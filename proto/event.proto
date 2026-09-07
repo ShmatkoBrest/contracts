@@ -52,6 +52,7 @@ message CreateEventRequest {
     string category = 10; // slug категории
     optional string organizer_id = 11;
     repeated string performer_ids = 12;
+    optional string event_group_id = 13;
 }
 
 // Обёртка нужна, чтобы отличить "поле не передано" (performer_ids не тронут
@@ -75,6 +76,7 @@ message UpdateEventRequest {
     optional string category = 11; // slug категории
     optional string organizer_id = 12;
     PerformerIdList performer_ids = 13;
+    optional string event_group_id = 14;
 }
 
 message DeleteEventRequest {
@@ -107,4 +109,5 @@ message EventDetails {
     google.protobuf.Timestamp release_date = 10;
     optional string organizer_id = 11;
     repeated string performer_ids = 12;
+    optional string event_group_id = 13;
 }

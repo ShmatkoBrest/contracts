@@ -16,6 +16,19 @@ service PaymentService {
   //
   rpc DeletePaymentMethod (DeletePaymentMethodRequest) returns (DeletePaymentMethodResponse);
 
+  // Создание платежа общего назначения — без привязки к брони через
+  // booking-service (в отличие от CreatePayment). Используется сервисами,
+  // которым нужно просто списать сумму и получить ссылку на оплату —
+  // например, subscription-service при покупке абонемента.
+  //
+  // callback_url в запросе указывает вызывающая сторона — платёжный
+  // провайдер шлёт вебхук напрямую туда (не в payment-service), поэтому
+  // payment-service не обязан знать об исходе платежа и не должен
+  // звонить обратно в вызывающий сервис — это сознательное архитектурное
+  // решение, чтобы не заводить новый порт вроде SubscriptionPort здесь.
+  // payment-service отвечает только за инициацию платежа у провайдера.
+  rpc CreateGenericPayment (CreateGenericPaymentRequest) returns (CreateGenericPaymentResponse);
+
 }
 message CreatePaymentRequest {
   string user_id = 1;
@@ -91,4 +104,26 @@ message PaymentMethodItem {
 
 message SeatInput {
     string seat_id = 1;
+}
+
+message CreateGenericPaymentRequest {
+  string user_id = 1;
+  // Сумма в минимальных единицах валюты (копейки/центы) — согласовано
+  // с платформенным соглашением (booking-service, payment-service сами
+  // хранят суммы как Int).
+  int32 amount = 2;
+  string description = 3;
+  string return_url = 4;
+  // Вызывающая сторона указывает СВОЙ callback_url — платёжный провайдер
+  // шлёт вебхук туда напрямую, а не в payment-service.
+  string callback_url = 5;
+  // Произвольные метаданные, которые платёжная система вернёт в вебхуке
+  // без изменений (например, subscription_id, user_subscription_id) —
+  // позволяет вызывающей стороне идентифицировать платёж на своей стороне.
+  map<string, string> metadata = 6;
+}
+
+message CreateGenericPaymentResponse {
+  string payment_id = 1;
+  string url = 2;
 }
