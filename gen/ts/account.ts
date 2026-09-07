@@ -10,14 +10,6 @@ import { Observable } from "rxjs";
 
 export const protobufPackage = "account.v1";
 
-export enum Role {
-  USER = 0,
-  ADMIN = 1,
-  EDITOR = 2,
-  CASHIER = 3,
-  UNRECOGNIZED = -1,
-}
-
 export interface GetAccountRequest {
   id: string;
 }
@@ -28,7 +20,7 @@ export interface GetAccountResponse {
   email: string;
   isPhoneVerified: boolean;
   isEmailVerified: boolean;
-  role: Role;
+  role: string;
 }
 
 export interface InitEmailChangeRequest {

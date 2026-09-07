@@ -30,7 +30,11 @@ message GetAccountResponse {
   string email             = 3;
   bool   is_phone_verified = 4;
   bool   is_email_verified = 5;
-  Role   role              = 6;
+  // Ключ роли из справочной таблицы `roles` в auth-service
+  // (USER | ADMIN | EDITOR | CASHIER). Раньше было enum Role — заменено на
+  // string, т.к. роли вынесены в таблицу. Канонический список ключей —
+  // `ROLE_KEYS` в @usteam/common.
+  string role              = 6;
 
 }
 
@@ -70,11 +74,4 @@ message ConfirmPhoneChangeRequest {
 
 message ConfirmPhoneChangeResponse {
   bool ok = 1;
-}
-
-enum Role {
-  USER    = 0;
-  ADMIN   = 1;
-  EDITOR  = 2;
-  CASHIER = 3;
 }
