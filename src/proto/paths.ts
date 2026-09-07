@@ -19,4 +19,5 @@ export const PROTO_PATHS = {
     BOOKING: join(__dirname, '../../proto/booking.proto'),
     PRICING: join(__dirname, '../../proto/pricing.proto'),
     SUBSCRIPTION: join(__dirname, '../../proto/subscription.proto'),
+    ANALYTICS: join(__dirname, '../../proto/analytics.proto'),
 } as const

@@ -1,0 +1,121 @@
+syntax = "proto3";
+
+package analytics.v1;
+
+// Аналитика платформы для админ-дашборда. analytics-service читает БД
+// остальных сервисов read-only и агрегирует. Все суммы — в копейках.
+service AnalyticsService {
+    // Сводные KPI за период.
+    rpc GetOverview (PeriodRequest) returns (Overview);
+    // Динамика продаж по дням/неделям.
+    rpc GetSalesTimeseries (TimeseriesRequest) returns (SalesTimeseries);
+    // Топ событий по выручке/билетам.
+    rpc GetTopEvents (TopEventsRequest) returns (TopEvents);
+    // Заполняемость сеансов.
+    rpc GetOccupancy (OccupancyRequest) returns (Occupancy);
+    // Статистика по кассирам и сменам.
+    rpc GetCashierStats (PeriodRequest) returns (CashierStats);
+}
+
+// from/to — ISO-строки (границы включительно по created_at). Пусто — весь период.
+message PeriodRequest {
+    optional string from = 1;
+    optional string to = 2;
+}
+
+message Overview {
+    int32 revenue = 1;          // сумма amount оплаченных заказов
+    int32 orders = 2;           // число оплаченных заказов
+    int32 tickets = 3;          // число оплаченных билетов
+    int32 avg_check = 4;        // revenue / orders (0 при orders = 0)
+    int32 refunds_amount = 5;
+    int32 refunds_count = 6;
+    int32 online_revenue = 7;   // payment_type IS NULL
+    int32 cashier_revenue = 8;  // payment_type IN (cash, terminal)
+}
+
+message TimeseriesRequest {
+    optional string from = 1;
+    optional string to = 2;
+    // day | week (по умолчанию day)
+    string bucket = 3;
+}
+
+message SalesTimeseries {
+    repeated TimeseriesPoint points = 1;
+}
+
+message TimeseriesPoint {
+    string date = 1;      // YYYY-MM-DD — начало бакета
+    int32 revenue = 2;
+    int32 orders = 3;
+    int32 tickets = 4;
+}
+
+message TopEventsRequest {
+    optional string from = 1;
+    optional string to = 2;
+    int32 limit = 3;      // по умолчанию 10
+    // revenue | tickets (по умолчанию revenue)
+    string sort = 4;
+}
+
+message TopEvents {
+    repeated TopEventItem items = 1;
+}
+
+message TopEventItem {
+    string event_id = 1;
+    string title = 2;
+    int32 revenue = 3;
+    int32 tickets = 4;
+}
+
+message OccupancyRequest {
+    // фильтр по start_at сеанса
+    optional string from = 1;
+    optional string to = 2;
+    optional string event_id = 3;
+    int32 limit = 4;      // по умолчанию 20
+}
+
+message Occupancy {
+    repeated OccupancyItem items = 1;
+}
+
+message OccupancyItem {
+    string screening_id = 1;
+    string event_title = 2;
+    string start_at = 3;
+    string sector_name = 4;
+    int32 capacity = 5;   // число мест (RESERVED) или Sector.capacity (GA)
+    int32 sold = 6;
+    double rate = 7;      // sold / capacity
+}
+
+message CashierStats {
+    repeated CashierStatItem cashiers = 1;
+    repeated ShiftStatItem shifts = 2;
+}
+
+message CashierStatItem {
+    string cashier_id = 1;
+    int32 sales = 2;
+    int32 revenue = 3;
+    int32 cash_revenue = 4;
+    int32 terminal_revenue = 5;
+}
+
+message ShiftStatItem {
+    string shift_id = 1;
+    string cashier_id = 2;
+    string opened_at = 3;
+    optional string closed_at = 4;
+    int32 sales = 5;
+    int32 revenue = 6;
+    int32 cash_total = 7;
+    int32 terminal_total = 8;
+    int32 opening_cash = 9;
+    optional int32 counted_cash = 10;
+    optional int32 difference = 11;
+}
