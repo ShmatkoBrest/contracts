@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package booking.v1;
 
+import "google/protobuf/timestamp.proto";
+
 service BookingService {
     // Получение всех активных броней пользователя
     rpc GetUserBookings (GetUserBookingsRequest) returns (GetUserBookingsResponse);
@@ -15,6 +17,101 @@ service BookingService {
     rpc CancelBooking (CancelBookingRequest) returns (CancelBookingResponse);
     // получение занятых мест
     rpc ListReservedSeats (ListReservedSeatsRequest) returns (ListReservedSeatsResponse);
+
+    // ===== Касса: смены и продажи =====
+    // Продажа на кассе: бронь + подтверждение + учёт в открытой смене кассира.
+    rpc CreateCashierSale (CreateCashierSaleRequest) returns (CreateCashierSaleResponse);
+    // Открыть смену (одна открытая смена на кассира).
+    rpc OpenShift (OpenShiftRequest) returns (Shift);
+    // Закрыть смену — возвращает отчёт со сверкой кассы.
+    rpc CloseShift (CloseShiftRequest) returns (ShiftReport);
+    // Текущая открытая смена кассира (NOT_FOUND, если нет).
+    rpc GetCurrentShift (GetCurrentShiftRequest) returns (Shift);
+    // Продажи смены.
+    rpc ListShiftSales (ListShiftSalesRequest) returns (ListShiftSalesResponse);
+}
+
+// ===== Cashier =====
+
+message CreateCashierSaleRequest {
+    string cashier_id = 1;
+    string screening_id = 2;
+    repeated SeatInput seats = 3;
+    // cash | terminal
+    string payment_type = 4;
+    // id аккаунта покупателя, если есть; иначе продажа привязывается к кассиру.
+    optional string customer_id = 5;
+    optional string audience_code = 6;
+    optional string promo_code = 7;
+}
+
+message CreateCashierSaleResponse {
+    string order_id = 1;
+    repeated string ticket_ids = 2;
+    int32 amount = 3;
+    string qr_code = 4;
+}
+
+enum ShiftStatus {
+    OPEN = 0;
+    CLOSED = 1;
+}
+
+message OpenShiftRequest {
+    string cashier_id = 1;
+    // наличные в кассе на начало смены (копейки)
+    int32 opening_cash = 2;
+}
+
+message CloseShiftRequest {
+    string cashier_id = 1;
+    // фактически пересчитанные наличные на конец смены (копейки)
+    int32 counted_cash = 2;
+}
+
+message GetCurrentShiftRequest {
+    string cashier_id = 1;
+}
+
+message Shift {
+    string id = 1;
+    string cashier_id = 2;
+    ShiftStatus status = 3;
+    int32 opening_cash = 4;
+    google.protobuf.Timestamp opened_at = 5;
+    optional google.protobuf.Timestamp closed_at = 6;
+}
+
+message ShiftReport {
+    Shift shift = 1;
+    int32 sales_count = 2;
+    // сумма всех продаж смены (копейки)
+    int32 total = 3;
+    int32 cash_total = 4;
+    int32 terminal_total = 5;
+    // opening_cash + cash_total
+    int32 expected_cash = 6;
+    int32 counted_cash = 7;
+    // counted_cash - expected_cash (отрицательное — недостача)
+    int32 difference = 8;
+}
+
+message ListShiftSalesRequest {
+    string cashier_id = 1;
+    // по умолчанию — текущая открытая смена
+    optional string shift_id = 2;
+}
+
+message ListShiftSalesResponse {
+    repeated CashierSaleItem sales = 1;
+}
+
+message CashierSaleItem {
+    string order_id = 1;
+    string screening_id = 2;
+    int32 amount = 3;
+    string payment_type = 4;
+    google.protobuf.Timestamp sold_at = 5;
 }
 
 message GetUserBookingsRequest {
