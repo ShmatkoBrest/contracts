@@ -5,6 +5,8 @@ package booking.v1;
 service BookingService {
     // Получение всех активных броней пользователя
     rpc GetUserBookings (GetUserBookingsRequest) returns (GetUserBookingsResponse);
+    // Получение одной брони по id (с проверкой владельца)
+    rpc GetBooking (GetBookingRequest) returns (GetBookingResponse);
     // создание брони
     rpc CreateReservation (CreateReservationRequest) returns (CreateReservationResponse);   
     // подтверждение брони
@@ -21,6 +23,15 @@ message GetUserBookingsRequest {
 
 message GetUserBookingsResponse {
     repeated BookingItem bookings = 1;
+}
+
+message GetBookingRequest {
+    string id = 1;
+    string user_id = 2;
+}
+
+message GetBookingResponse {
+    BookingItem booking = 1;
 }
 
 message CreateReservationRequest {

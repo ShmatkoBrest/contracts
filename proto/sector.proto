@@ -98,6 +98,17 @@ message Sector {
 
 message RowLayout {
     int32 row = 1;
+    // Кол-во реальных мест в ряду.
     int32 columns = 2;
     string type = 3;
+
+    // Геометрия/нумерация ряда — всё опционально, при отсутствии
+    // arena-service ведёт себя как раньше (прямоугольная сетка,
+    // x = номер места, y = номер ряда, нумерация с 1).
+    optional int32  start_number = 4;   // с какого номера нумеровать (по умолчанию 1)
+    repeated int32  gaps         = 5;   // номера-проходы: слот пропускается (место не создаётся)
+    optional double seat_spacing = 6;   // шаг между местами по X (по умолчанию 1)
+    optional double row_spacing  = 7;   // шаг между рядами по Y (по умолчанию 1)
+    optional double offset_x     = 8;   // сдвиг всего ряда по X (ступенчатые трибуны)
+    optional double curve        = 9;   // кривизна ряда: смещение по Y = curve * (i - center)^2
 }

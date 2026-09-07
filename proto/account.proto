@@ -2,11 +2,18 @@ syntax = "proto3";
 
 package account.v1;
 
+import "google/protobuf/empty.proto";
+
 // AccountService отвечает за операции с аккаунтом.
 service AccountService {
     // GetAccount отправляет id аккаунта
     // получает данные об аккаунте
   rpc GetAccount (GetAccountRequest) returns (GetAccountResponse);
+
+    // Администрирование аккаунтов и ролей
+    rpc ListAccounts (ListAccountsRequest) returns (ListAccountsResponse);
+    rpc SetAccountRole (SetAccountRoleRequest) returns (GetAccountResponse);
+    rpc ListRoles (google.protobuf.Empty) returns (ListRolesResponse);
 
     // InitEmailChange запрашивает новую почту
   rpc InitEmailChange(InitEmailChangeRequest) returns (InitEmailChangeResponse);
@@ -36,6 +43,36 @@ message GetAccountResponse {
   // `ROLE_KEYS` в @usteam/common.
   string role              = 6;
 
+}
+
+message ListAccountsRequest {
+  // Поиск по подстроке в phone/email
+  optional string query = 1;
+  // Фильтр по ключу роли
+  optional string role  = 2;
+  int32 page      = 3;
+  int32 page_size = 4;
+}
+
+message ListAccountsResponse {
+  repeated GetAccountResponse accounts = 1;
+  int32 total = 2;
+}
+
+message SetAccountRoleRequest {
+  string id   = 1;
+  // Ключ роли (USER | ADMIN | EDITOR | CASHIER)
+  string role = 2;
+}
+
+message Role {
+  string id    = 1;
+  string key   = 2;
+  string title = 3;
+}
+
+message ListRolesResponse {
+  repeated Role roles = 1;
 }
 
 message InitEmailChangeRequest {
