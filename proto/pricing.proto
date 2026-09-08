@@ -66,6 +66,8 @@ message CalculatePriceResponse {
     // id созданного PriceSnapshot — передаётся в booking-service при
     // создании билета для последующей трассируемости расчёта.
     string snapshot_id = 6;
+    // Бонусные баллы за применённый промокод (loyalty.v1) — копейки.
+    int32 promo_bonus_points = 7;
 }
 
 message AppliedRule {
@@ -210,6 +212,8 @@ message CreatePromoCodeRequest {
     optional int32 usage_limit = 4;
     optional google.protobuf.Timestamp valid_from = 5;
     optional google.protobuf.Timestamp valid_to = 6;
+    // Бонусные баллы лояльности за ввод промокода (копейки).
+    optional int32 bonus_points = 7;
 }
 
 message DeactivatePromoCodeRequest {
@@ -226,6 +230,7 @@ message PromoCode {
     int32 used_count = 7;
     optional google.protobuf.Timestamp valid_from = 8;
     optional google.protobuf.Timestamp valid_to = 9;
+    int32 bonus_points = 10;
 }
 
 // ===== Audience =====

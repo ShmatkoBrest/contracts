@@ -1,0 +1,212 @@
+syntax = "proto3";
+
+package loyalty.v1;
+
+import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
+
+// Программа лояльности: бонусные баллы за покупку билетов и абонементов.
+// Собственный сервис loyalty-service с append-only леджером транзакций.
+// 1 балл = 1 копейка при списании (денежный эквивалент). Процент начисления
+// настраивается правилами (LoyaltyRule + переопределения под событие).
+//
+// Все интеграционные вызовы (Earn/Redeem/RefundAdjust) идемпотентны по
+// (kind, ref_id) и вызывающая сторона обязана обрабатывать сбой мягко —
+// недоступность loyalty-service не должна блокировать покупку/возврат.
+service LoyaltyService {
+    // --- Чтение (пользователь) ---
+    rpc GetBalance (UserRequest) returns (Balance);
+    rpc GetHistory (HistoryRequest) returns (HistoryResponse);
+    // Сколько баллов начислим за такую покупку (для подсказки на витрине).
+    rpc PreviewEarn (PreviewEarnRequest) returns (PointsResponse);
+    // Сколько баллов реально можно списать на заказ и какая будет скидка
+    // (с учётом баланса, min и max % от суммы заказа).
+    rpc QuoteRedeem (QuoteRedeemRequest) returns (QuoteRedeemResponse);
+
+    // --- Операции (внутренние, из payment/booking/subscription) ---
+    rpc Earn (EarnRequest) returns (TxResponse);
+    rpc GrantPromoBonus (PromoBonusRequest) returns (TxResponse);
+    rpc Redeem (RedeemRequest) returns (RedeemResponse);
+    // Вернуть ранее списанные баллы (отмена/провал платежа до подтверждения).
+    rpc ReturnRedeemed (RefRequest) returns (SimpleResponse);
+    // Возврат билета: пропорционально сумме возврата снять начисленное
+    // (может уйти в минус) и вернуть списанное на этот заказ.
+    rpc RefundAdjust (RefundAdjustRequest) returns (RefundAdjustResponse);
+
+    // --- Администрирование ---
+    rpc GetRule (google.protobuf.Empty) returns (LoyaltyRule);
+    rpc UpdateRule (UpdateRuleRequest) returns (LoyaltyRule);
+    rpc ListEventRules (google.protobuf.Empty) returns (EventRulesResponse);
+    rpc SetEventRule (SetEventRuleRequest) returns (EventRule);
+    rpc DeleteEventRule (IdRequest) returns (SimpleResponse);
+    // Ручная корректировка баланса (+/-), например компенсация.
+    rpc Adjust (AdjustRequest) returns (TxResponse);
+}
+
+// EARN — начисление за покупку; REDEEM — списание; REFUND_CLAWBACK — снятие
+// начисленного при возврате; REFUND_RETURN — возврат списанного при возврате;
+// PROMO_BONUS — бонус за промокод; EXPIRE — сгорание; ADJUST — ручная правка.
+enum TxKind {
+    EARN = 0;
+    REDEEM = 1;
+    REFUND_CLAWBACK = 2;
+    REFUND_RETURN = 3;
+    PROMO_BONUS = 4;
+    EXPIRE = 5;
+    ADJUST = 6;
+}
+
+enum EarnSource {
+    TICKET = 0;
+    SUBSCRIPTION = 1;
+    PROMO = 2;
+    MANUAL = 3;
+}
+
+message Balance {
+    string user_id = 1;
+    // Текущий баланс в баллах (= копейки).
+    int32 points = 2;
+    // Сколько баллов сгорит в ближайшие 30 дней.
+    int32 expiring_soon = 3;
+    optional google.protobuf.Timestamp expiring_at = 4;
+}
+
+message Transaction {
+    string id = 1;
+    string user_id = 2;
+    TxKind kind = 3;
+    // Знаковое: EARN/REFUND_RETURN/PROMO_BONUS/ADJUST(+) — плюс;
+    // REDEEM/REFUND_CLAWBACK/EXPIRE — минус.
+    int32 points = 4;
+    EarnSource source = 5;
+    optional string ref_type = 6;   // ORDER | SUBSCRIPTION | PROMO
+    optional string ref_id = 7;
+    // Сумма покупки (копейки), от которой начислено — для пропорц. clawback.
+    int32 amount = 8;
+    optional string note = 9;
+    optional google.protobuf.Timestamp expires_at = 10;
+    google.protobuf.Timestamp created_at = 11;
+}
+
+message UserRequest { string user_id = 1; }
+message IdRequest { string id = 1; }
+message RefRequest {
+    string user_id = 1;
+    string ref_id = 2;
+}
+message SimpleResponse { bool ok = 1; }
+message PointsResponse { int32 points = 1; }
+message TxResponse {
+    // Пусто, если операция была пропущена как дубликат (идемпотентность).
+    optional Transaction transaction = 1;
+    int32 balance = 2;
+}
+
+message HistoryRequest {
+    string user_id = 1;
+    int32 limit = 2;         // 1..100, по умолчанию 20
+    optional string cursor = 3;
+}
+message HistoryResponse {
+    repeated Transaction transactions = 1;
+    optional string next_cursor = 2;
+}
+
+message PreviewEarnRequest {
+    string user_id = 1;
+    EarnSource source = 2;
+    int32 amount = 3;                 // копейки
+    // Для source=TICKET — сеанс, чтобы применить переопределение под событие.
+    optional string screening_id = 4;
+}
+
+message QuoteRedeemRequest {
+    string user_id = 1;
+    int32 order_amount = 2;           // сумма заказа в копейках
+    int32 requested_points = 3;       // сколько баллов хочет списать
+}
+message QuoteRedeemResponse {
+    // Сколько баллов реально спишется (после ограничений).
+    int32 applied_points = 1;
+    // Скидка в копейках (= applied_points).
+    int32 discount = 2;
+    // Причина ограничения, если applied_points < requested_points.
+    optional string capped_by = 3;   // BALANCE | MAX_PERCENT | BELOW_MIN
+}
+
+message EarnRequest {
+    string user_id = 1;
+    EarnSource source = 2;
+    int32 amount = 3;                 // сумма покупки (копейки)
+    string ref_type = 4;             // ORDER | SUBSCRIPTION
+    string ref_id = 5;
+    optional string screening_id = 6; // для TICKET — переопределение под событие
+    // Бонус за промокод, начислить одной операцией PROMO_BONUS (копейки).
+    int32 promo_bonus = 7;
+    optional string promo_code = 8;
+}
+
+message PromoBonusRequest {
+    string user_id = 1;
+    string promo_code = 2;
+    int32 points = 3;
+    optional string ref_id = 4;      // например bookingId, для идемпотентности
+}
+
+message RedeemRequest {
+    string user_id = 1;
+    int32 points = 2;
+    string ref_id = 3;               // bookingId / orderId
+}
+message RedeemResponse {
+    int32 redeemed = 1;
+    int32 balance = 2;
+}
+
+message RefundAdjustRequest {
+    string user_id = 1;
+    string ref_id = 2;               // тот же ref_id, что при Earn/Redeem
+    int32 refunded_amount = 3;       // сумма возврата (копейки)
+    int32 total_amount = 4;          // исходная сумма заказа (копейки)
+}
+message RefundAdjustResponse {
+    int32 clawed_back = 1;           // сколько начисленного снято
+    int32 returned = 2;             // сколько списанного возвращено
+    int32 balance = 3;
+}
+
+message LoyaltyRule {
+    // Синглтон.
+    double ticket_earn_percent = 1;
+    double subscription_earn_percent = 2;
+    double max_redeem_percent = 3;   // макс. доля заказа, оплачиваемая баллами
+    int32 min_redeem_points = 4;
+    int32 expiry_months = 5;
+    google.protobuf.Timestamp updated_at = 6;
+}
+message UpdateRuleRequest {
+    optional double ticket_earn_percent = 1;
+    optional double subscription_earn_percent = 2;
+    optional double max_redeem_percent = 3;
+    optional int32 min_redeem_points = 4;
+    optional int32 expiry_months = 5;
+}
+
+message EventRule {
+    string id = 1;
+    string event_id = 2;
+    // Переопределяет ticket_earn_percent для этого события (0 = не начислять).
+    double earn_percent = 3;
+}
+message EventRulesResponse { repeated EventRule rules = 1; }
+message SetEventRuleRequest {
+    string event_id = 1;
+    double earn_percent = 2;
+}
+
+message AdjustRequest {
+    string user_id = 1;
+    int32 points = 2;               // знаковое
+    string note = 3;
+}

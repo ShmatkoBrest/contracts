@@ -43,6 +43,8 @@ message CreateCashierSaleRequest {
     optional string customer_id = 5;
     optional string audience_code = 6;
     optional string promo_code = 7;
+    // Списать баллы лояльности покупателя (копейки; нужен customer_id).
+    int32 redeem_points = 8;
 }
 
 message CreateCashierSaleResponse {

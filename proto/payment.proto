@@ -38,6 +38,8 @@ message CreatePaymentRequest {
   repeated SeatInput seats = 3;
   optional string payment_method_id = 4;
   bool save_payment_method = 5;
+  // Списать баллы лояльности на заказ (копейки, loyalty.v1).
+  int32 redeem_points = 6;
 }
 message CreatePaymentResponse {
   string url = 1;
