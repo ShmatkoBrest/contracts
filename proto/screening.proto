@@ -20,7 +20,9 @@ service ScreeningService {
 
 message CreateScreeningRequest {
     string event_id = 1;
-    string sector_id = 2;
+    // Сеанс проводится на всей арене. Сектор покупатель/кассир выбирает
+    // при выборе мест (contracts 3.7.0 — раньше здесь был sector_id).
+    string arena_id = 2;
     string start_at = 3;
     string end_at = 4;
 }
@@ -58,7 +60,7 @@ message GetScreeningResponse {
 message UpdateScreeningRequest {
     string id = 1;
     optional string event_id = 2;
-    optional string sector_id = 3;
+    optional string arena_id = 3;
     optional string start_at = 4;
     optional string end_at = 5;
 }
@@ -88,10 +90,11 @@ message Screening {
     string id = 1;
     google.protobuf.Timestamp start_at = 2;
     google.protobuf.Timestamp end_at = 3;
+    // Сеанс на всей арене. Секторы и их места запрашиваются отдельно
+    // (sector.v1 ListSectorsByArena / seat.v1) при выборе мест.
     Arena arena = 4;
-    Sector sector = 5;
     Event event = 6;
-    repeated SeatType seat_type = 7;
+    // 5 (Sector sector) и 7 (repeated SeatType seat_type) удалены в 3.7.0.
 }
 
 message Arena {
@@ -99,13 +102,4 @@ message Arena {
     string name = 2;
     string address = 3;
     string image = 4;
-}
-
-message Sector {
-    string id = 1;
-    string name = 2;
-}
-
-message SeatType {
-    string type = 1;
 }
