@@ -20,6 +20,7 @@ message GetSeatResponse {
 
 message ListSeatsRequest {
     string sector_id = 1;
+    // Пусто → вернуть места без статуса брони (для конструктора зала).
     string screening_id = 2;
 }
 
@@ -34,4 +35,7 @@ message Seat {
     string status = 4;
     string type = 5;
     string sector_id = 6;
+    // Координаты на схеме зала (для рендера SeatMap/конструктора).
+    optional int32 x = 7;
+    optional int32 y = 8;
 }

@@ -13,6 +13,8 @@ export const PROTO_PATHS = {
     ARENA: join(__dirname, '../../proto/arena.proto'),
     SECTOR: join(__dirname, '../../proto/sector.proto'),
     SEAT: join(__dirname, '../../proto/seat.proto'),
+    CITY: join(__dirname, '../../proto/city.proto'),
+    SEAT_TYPE: join(__dirname, '../../proto/seat-type.proto'),
     SCREENING: join(__dirname, '../../proto/screening.proto'),
     PAYMENT: join(__dirname, '../../proto/payment.proto'),
     REFUND: join(__dirname, '../../proto/refund.proto'),

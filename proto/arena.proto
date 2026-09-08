@@ -33,6 +33,11 @@ message CreateArenaRequest {
     string name    = 1;
     string address = 2;
     string image   = 3;
+    // id города (city.v1, FK внутри arena-service). Опционально для обратной совместимости.
+    optional string city_id = 4;
+    // S3-ключ схемы зала (подложка конструктора, §12). Отличается от image
+    // (фото площадки для карточек).
+    optional string plan_image = 5;
 }
 
 message CreateArenaResponse {
@@ -44,6 +49,8 @@ message UpdateArenaRequest {
     string name    = 2;
     string address = 3;
     string image   = 4;
+    optional string city_id = 5;
+    optional string plan_image = 6;
 }
 
 message UpdateArenaResponse {
@@ -63,4 +70,8 @@ message Arena {
     string name    = 2;
     string address = 3;
     string image   = 4;
+    optional string city_id = 5;
+    // slug города, денормализовано при чтении (для афиши/фронта без доп. запроса).
+    optional string city_slug = 6;
+    optional string plan_image = 7;
 }

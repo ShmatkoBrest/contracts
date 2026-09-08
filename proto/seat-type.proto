@@ -1,0 +1,65 @@
+syntax = "proto3";
+
+package seat_type.v1;
+
+// Типы мест конкретной арены (палитра для конструктора зала и легенды на
+// схеме, §11/§13 фронтенда). Каждая арена определяет свой набор: `normal`
+// сидится по умолчанию при создании арены, остальные (`vip`, `sofa`, «Ложа
+// Восток» и т.п.) заводит менеджер.
+//
+// `Seat.type` в seat.proto/sector.proto остаётся строкой = `SeatType.key`
+// (без FK), эта модель — справочник для отображения (title/color).
+service SeatTypeService {
+    // Типы мест арены.
+    rpc ListSeatTypes (ListSeatTypesRequest) returns (ListSeatTypesResponse);
+    rpc CreateSeatType (CreateSeatTypeRequest) returns (SeatTypeResponse);
+    // key неизменяем (на него ссылаются уже созданные места) — здесь его нет.
+    rpc UpdateSeatType (UpdateSeatTypeRequest) returns (SeatTypeResponse);
+    rpc DeleteSeatType (DeleteSeatTypeRequest) returns (DeleteSeatTypeResponse);
+}
+
+message SeatType {
+    string id = 1;
+    string arena_id = 2;
+    // Стабильный ключ в рамках арены (`normal`, `vip`, ...). Пишется в Seat.type.
+    string key = 3;
+    string title = 4;
+    // HEX-цвет для схемы зала и легенды (`#RRGGBB`).
+    string color = 5;
+    int32 sort_order = 6;
+}
+
+message ListSeatTypesRequest {
+    string arena_id = 1;
+}
+
+message ListSeatTypesResponse {
+    repeated SeatType seat_types = 1;
+}
+
+message CreateSeatTypeRequest {
+    string arena_id = 1;
+    string key = 2;
+    string title = 3;
+    string color = 4;
+    optional int32 sort_order = 5;
+}
+
+message UpdateSeatTypeRequest {
+    string id = 1;
+    optional string title = 2;
+    optional string color = 3;
+    optional int32 sort_order = 4;
+}
+
+message SeatTypeResponse {
+    SeatType seat_type = 1;
+}
+
+message DeleteSeatTypeRequest {
+    string id = 1;
+}
+
+message DeleteSeatTypeResponse {
+    bool ok = 1;
+}

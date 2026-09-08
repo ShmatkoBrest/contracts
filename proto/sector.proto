@@ -50,7 +50,11 @@ message GetSectorResponse {
 message GetSectorWithSeatsResponse {
     Sector sector = 1;
     // Актуально только для mode = RESERVED; для GENERAL_ADMISSION — пустой список.
+    // Реконструкция по рядам: geometry-поля (curve/spacing/gaps) не
+    // восстанавливаются, они «запечены» в x/y мест — см. `seats`.
     repeated RowLayout layout = 2;
+    // Все места сектора с точными координатами и id (для конструктора §12).
+    repeated SeatDetail seats = 3;
 }
 
 message ListSectorsRequest {
@@ -130,4 +134,16 @@ message RowLayout {
     optional double row_spacing  = 7;   // шаг между рядами по Y (по умолчанию 1)
     optional double offset_x     = 8;   // сдвиг всего ряда по X (ступенчатые трибуны)
     optional double curve        = 9;   // кривизна ряда: смещение по Y = curve * (i - center)^2
+    optional bool   number_rtl   = 10;  // нумеровать места справа-налево (по умолчанию слева-направо)
+}
+
+// Место с полной геометрией — для загрузки существующего сектора в конструктор
+// (§12): нужны точные x/y и стабильный id (на него ссылается pricing).
+message SeatDetail {
+    string id     = 1;
+    int32  row    = 2;
+    int32  number = 3;
+    int32  x      = 4;
+    int32  y      = 5;
+    string type   = 6;
 }
