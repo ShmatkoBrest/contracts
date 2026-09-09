@@ -1,0 +1,164 @@
+syntax = "proto3";
+
+package news.v1;
+
+import "google/protobuf/empty.proto";
+
+// Сервис новостей платформы: категории новостей + сами новости.
+// Новость может быть привязана к нескольким сущностям (событие, группа
+// событий, исполнитель, организатор) — news-service хранит только тип и id,
+// резолвит их gateway.
+service NewsService {
+    // --- категории ---
+    rpc ListCategories (google.protobuf.Empty) returns (ListCategoriesResponse);
+    rpc CreateCategory (CreateCategoryRequest) returns (NewsCategory);
+    rpc UpdateCategory (UpdateCategoryRequest) returns (NewsCategory);
+    rpc DeleteCategory (DeleteCategoryRequest) returns (MutationAck);
+
+    // --- новости ---
+    rpc ListArticles (ListArticlesRequest) returns (ListArticlesResponse);
+    rpc GetArticle (GetArticleRequest) returns (ArticleDetails);
+    rpc CreateArticle (CreateArticleRequest) returns (ArticleDetails);
+    rpc UpdateArticle (UpdateArticleRequest) returns (ArticleDetails);
+    rpc DeleteArticle (DeleteArticleRequest) returns (MutationAck);
+}
+
+message MutationAck {
+    bool ok = 1;
+}
+
+// ---------- категории ----------
+
+message NewsCategory {
+    string id = 1;
+    string title = 2;
+    string slug = 3;
+}
+
+message ListCategoriesResponse {
+    repeated NewsCategory categories = 1;
+}
+
+message CreateCategoryRequest {
+    string title = 1;
+    string slug = 2;
+}
+
+message UpdateCategoryRequest {
+    string id = 1;
+    optional string title = 2;
+    optional string slug = 3;
+}
+
+message DeleteCategoryRequest {
+    string id = 1;
+}
+
+// ---------- новости ----------
+
+// type: EVENT | EVENT_GROUP | PERFORMER | ORGANIZER
+message NewsRelation {
+    string type = 1;
+    string ref_id = 2;
+}
+
+// Обёртки для presence repeated-полей при обновлении (см. event.proto:PerformerIdList).
+message StringList {
+    repeated string values = 1;
+}
+
+message RelationList {
+    repeated NewsRelation values = 1;
+}
+
+message ArticleListItem {
+    string id = 1;
+    string title = 2;
+    string slug = 3;
+    string excerpt = 4;
+    string cover_image = 5;
+    string status = 6;
+    // ISO-строка; пусто = не задана
+    string published_at = 7;
+    string category_id = 8;
+    string category_slug = 9;
+    string category_title = 10;
+}
+
+message ArticleDetails {
+    string id = 1;
+    string title = 2;
+    string slug = 3;
+    string excerpt = 4;
+    string body = 5;
+    string cover_image = 6;
+    repeated string gallery = 7;
+    string status = 8;
+    string published_at = 9;
+    string seo_title = 10;
+    string seo_description = 11;
+    string category_id = 12;
+    string category_slug = 13;
+    string category_title = 14;
+    repeated NewsRelation relations = 15;
+    string created_at = 16;
+    string updated_at = 17;
+}
+
+message ListArticlesRequest {
+    optional string status = 1;
+    optional string category_slug = 2;
+    optional string relation_type = 3;
+    optional string relation_ref_id = 4;
+    // true — только опубликованные и с published_at <= now
+    bool public_only = 5;
+    int32 page = 6;       // 1-based; 0 = без пагинации
+    int32 page_size = 7;
+}
+
+message ListArticlesResponse {
+    repeated ArticleListItem items = 1;
+    int32 total = 2;
+}
+
+message GetArticleRequest {
+    optional string id = 1;
+    optional string slug = 2;
+    // при true отдаём только если новость публично видна
+    bool public_only = 3;
+}
+
+message CreateArticleRequest {
+    string title = 1;
+    string slug = 2;
+    string excerpt = 3;
+    string body = 4;
+    optional string cover_image = 5;
+    repeated string gallery = 6;
+    string status = 7;
+    optional string published_at = 8;
+    optional string seo_title = 9;
+    optional string seo_description = 10;
+    string category_id = 11;
+    repeated NewsRelation relations = 12;
+}
+
+message UpdateArticleRequest {
+    string id = 1;
+    optional string title = 2;
+    optional string slug = 3;
+    optional string excerpt = 4;
+    optional string body = 5;
+    optional string cover_image = 6;
+    StringList gallery = 7;
+    optional string status = 8;
+    optional string published_at = 9;
+    optional string seo_title = 10;
+    optional string seo_description = 11;
+    optional string category_id = 12;
+    RelationList relations = 13;
+}
+
+message DeleteArticleRequest {
+    string id = 1;
+}

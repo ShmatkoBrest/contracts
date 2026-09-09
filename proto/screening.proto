@@ -16,6 +16,15 @@ service ScreeningService {
     rpc UpdateScreening (UpdateScreeningRequest) returns (UpdateScreeningResponse);
     // Удаление сеанса
     rpc DeleteScreening (DeleteScreeningRequest) returns (DeleteScreeningResponse);
+
+    // --- Права кассиров на продажу сеанса (3.8.0) ---
+    // Список id кассиров, которым разрешён этот сеанс. Пустой список = сеанс
+    // открыт всем кассирам (обратная совместимость).
+    rpc GetScreeningCashiers (GetScreeningCashiersRequest) returns (ScreeningCashiersResponse);
+    // Заменить список разрешённых кассиров целиком.
+    rpc SetScreeningCashiers (SetScreeningCashiersRequest) returns (ScreeningCashiersResponse);
+    // Проверка: может ли кассир продавать этот сеанс (для booking-service).
+    rpc CanCashierSell (CanCashierSellRequest) returns (CanCashierSellResponse);
 }
 
 message CreateScreeningRequest {
@@ -34,6 +43,9 @@ message CreateScreeningResponse {
 message GetScreeningsRequest {
     optional string arena_id = 1;
     optional string date = 2;
+    // 3.8.0: если задан — только сеансы, которые разрешено продавать этому
+    // кассиру (сеансы без назначенных кассиров разрешены всем).
+    optional string cashier_id = 3;
 }
 
 message GetScreeningsResponse {
@@ -75,6 +87,31 @@ message DeleteScreeningRequest {
 
 message DeleteScreeningResponse {
     bool ok = 1;
+}
+
+// --- Права кассиров (3.8.0) ---
+
+message GetScreeningCashiersRequest {
+    string screening_id = 1;
+}
+
+message SetScreeningCashiersRequest {
+    string screening_id = 1;
+    // id аккаунтов кассиров. Пустой список = сеанс открыт всем кассирам.
+    repeated string cashier_ids = 2;
+}
+
+message ScreeningCashiersResponse {
+    repeated string cashier_ids = 1;
+}
+
+message CanCashierSellRequest {
+    string cashier_id = 1;
+    string screening_id = 2;
+}
+
+message CanCashierSellResponse {
+    bool allowed = 1;
 }
 
 message Event {

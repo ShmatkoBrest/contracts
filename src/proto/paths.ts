@@ -23,4 +23,5 @@ export const PROTO_PATHS = {
     SUBSCRIPTION: join(__dirname, '../../proto/subscription.proto'),
     ANALYTICS: join(__dirname, '../../proto/analytics.proto'),
     LOYALTY: join(__dirname, '../../proto/loyalty.proto'),
+    NEWS: join(__dirname, '../../proto/news.proto'),
 } as const
