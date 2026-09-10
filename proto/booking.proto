@@ -29,6 +29,26 @@ service BookingService {
     rpc GetCurrentShift (GetCurrentShiftRequest) returns (Shift);
     // Продажи смены.
     rpc ListShiftSales (ListShiftSalesRequest) returns (ListShiftSalesResponse);
+
+    // ===== 3.11.0: пригласительные, аннулирование, журнал, печать =====
+    // Выдать пригласительные билеты (0 ₽, без оплаты) — только ADMIN.
+    rpc IssueComplimentary (IssueComplimentaryRequest) returns (IssueComplimentaryResponse);
+    // Аннулировать заказ: место освобождается, билеты → VOIDED, запись в журнал.
+    // Идемпотентно. Деньги покупателю НЕ возвращаются (это отдельная операция).
+    rpc VoidOrder (VoidOrderRequest) returns (VoidOrderResponse);
+    // Убрать все пригласительные сеанса после матча (bulk void).
+    rpc ArchiveScreeningComps (ArchiveScreeningCompsRequest) returns (ArchiveScreeningCompsResponse);
+    // Админский список заказов (по умолчанию без VOIDED и COMP).
+    rpc ListOrders (ListOrdersRequest) returns (ListOrdersResponse);
+    // Журнал действий по билетам (выдача пригласительных / аннулирование).
+    rpc ListTicketAudit (ListTicketAuditRequest) returns (ListTicketAuditResponse);
+    // Печатные представления билетов заказа (для термопечати / повторной печати).
+    rpc GetPrintableTickets (GetPrintableTicketsRequest) returns (GetPrintableTicketsResponse);
+    // Проверка билета по id из QR (контроль на входе). Read-only.
+    rpc ValidateTicket (ValidateTicketRequest) returns (ValidateTicketResponse);
+    // Макет термопечати (singleton).
+    rpc GetPrintTemplate (GetPrintTemplateRequest) returns (GetPrintTemplateResponse);
+    rpc SetPrintTemplate (SetPrintTemplateRequest) returns (SetPrintTemplateResponse);
 }
 
 // ===== Cashier =====
@@ -52,6 +72,8 @@ message CreateCashierSaleResponse {
     repeated string ticket_ids = 2;
     int32 amount = 3;
     string qr_code = 4;
+    // 3.11.0: печатные представления каждого билета (отдельный QR на билет).
+    repeated PrintableTicket tickets = 5;
 }
 
 enum ShiftStatus {
@@ -184,6 +206,10 @@ message BookingSeatInfo {
     int32 number = 3;
     // 3.7.0: заказ может охватывать несколько секторов — сектор у каждого места.
     string sector_name = 4;
+    // 3.11.0: отдельный билет и его QR (для термопечати и контроля на входе).
+    string ticket_id = 5;
+    // data-URI PNG; у исторических билетов пусто — фолбэк на BookingItem.qr_code.
+    string qr_code = 6;
 }
 
 message BookingEventInfo {
@@ -206,4 +232,156 @@ message BookingItem {
     // 6 (BookingSectorInfo sector) удалён в 3.7.0 — сектор теперь у каждого места.
     repeated BookingSeatInfo seats = 7;
     string qr_code = 8;
+    // 3.11.0: SALE | COMP; статус заказа (PAID / VOIDED / ...).
+    string kind = 9;
+    string status = 10;
+}
+
+// ===== 3.11.0 =====
+
+// Печатное представление одного билета (термопринтер / повторная печать).
+message PrintableTicket {
+    string ticket_id = 1;
+    string order_id = 2;
+    string event_title = 3;
+    string screening_date = 4;
+    string screening_time = 5;
+    string venue_name = 6;
+    string sector_name = 7;
+    int32 row = 8;
+    int32 number = 9;
+    // копейки; у пригласительных 0.
+    int32 price = 10;
+    // строка, которую кодирует QR (обычно ticket_id).
+    string qr_data = 11;
+    bool is_comp = 12;
+}
+
+message IssueComplimentaryRequest {
+    string screening_id = 1;
+    repeated SeatInput seats = 2;
+    // id админа, выдавшего пригласительные.
+    string issued_by = 3;
+    string note = 4;
+}
+
+message IssueComplimentaryResponse {
+    string order_id = 1;
+    repeated PrintableTicket tickets = 2;
+}
+
+message VoidOrderRequest {
+    string order_id = 1;
+    string actor_id = 2;
+    string reason = 3;
+}
+
+message VoidOrderResponse {
+    // false, если заказ уже был VOIDED (идемпотентный no-op).
+    bool changed = 1;
+}
+
+message ArchiveScreeningCompsRequest {
+    string screening_id = 1;
+    string actor_id = 2;
+}
+
+message ArchiveScreeningCompsResponse {
+    int32 voided_orders = 1;
+}
+
+message ListOrdersRequest {
+    optional string screening_id = 1;
+    // фильтр по статусу заказа; пусто = активные (без VOIDED).
+    optional string status = 2;
+    // SALE | COMP; пусто = только SALE.
+    optional string kind = 3;
+    optional string cursor = 4;
+    int32 limit = 5;
+}
+
+message OrderListItem {
+    string id = 1;
+    string kind = 2;
+    string status = 3;
+    int32 amount = 4;
+    google.protobuf.Timestamp created_at = 5;
+    string screening_id = 6;
+    string event_title = 7;
+    int32 seat_count = 8;
+    // касса | онлайн | пригласительный — краткий признак для списка.
+    string source = 9;
+}
+
+message ListOrdersResponse {
+    repeated OrderListItem orders = 1;
+    string next_cursor = 2;
+}
+
+message ListTicketAuditRequest {
+    optional string screening_id = 1;
+    optional google.protobuf.Timestamp from = 2;
+    optional google.protobuf.Timestamp to = 3;
+    // ISSUED_COMP | VOIDED | COMP_ARCHIVED
+    optional string action = 4;
+    optional string cursor = 5;
+    int32 limit = 6;
+}
+
+message TicketAuditItem {
+    string id = 1;
+    string action = 2;
+    string actor_id = 3;
+    string order_id = 4;
+    string ticket_id = 5;
+    string reason = 6;
+    google.protobuf.Timestamp created_at = 7;
+    string meta_json = 8;
+}
+
+message ListTicketAuditResponse {
+    repeated TicketAuditItem entries = 1;
+    string next_cursor = 2;
+}
+
+message GetPrintableTicketsRequest {
+    string order_id = 1;
+}
+
+message GetPrintableTicketsResponse {
+    repeated PrintableTicket tickets = 1;
+}
+
+message ValidateTicketRequest {
+    string ticket_id = 1;
+}
+
+message ValidateTicketResponse {
+    // true, только если билет активен (PAID и не VOIDED).
+    bool valid = 1;
+    // PAID | VOIDED | RESERVED | NOT_FOUND
+    string status = 2;
+    bool is_comp = 3;
+    string event_title = 4;
+    string screening_date = 5;
+    string screening_time = 6;
+    string venue_name = 7;
+    string sector_name = 8;
+    int32 row = 9;
+    int32 number = 10;
+}
+
+message GetPrintTemplateRequest {}
+
+message GetPrintTemplateResponse {
+    // JSON-строка с настройками макета.
+    string settings_json = 1;
+}
+
+message SetPrintTemplateRequest {
+    string settings_json = 1;
+}
+
+message SetPrintTemplateResponse {
+    bool ok = 1;
 }

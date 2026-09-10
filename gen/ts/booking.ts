@@ -7,8 +7,97 @@
 /* eslint-disable */
 import { GrpcMethod, GrpcStreamMethod } from "@nestjs/microservices";
 import { Observable } from "rxjs";
+import { Timestamp } from "./google/protobuf/timestamp";
 
 export const protobufPackage = "booking.v1";
+
+export enum ShiftStatus {
+  OPEN = 0,
+  CLOSED = 1,
+  UNRECOGNIZED = -1,
+}
+
+export interface CreateCashierSaleRequest {
+  cashierId: string;
+  screeningId: string;
+  seats: SeatInput[];
+  /** cash | terminal */
+  paymentType: string;
+  /** id аккаунта покупателя, если есть; иначе продажа привязывается к кассиру. */
+  customerId?: string | undefined;
+  audienceCode?: string | undefined;
+  promoCode?:
+    | string
+    | undefined;
+  /** Списать баллы лояльности покупателя (копейки; нужен customer_id). */
+  redeemPoints: number;
+}
+
+export interface CreateCashierSaleResponse {
+  orderId: string;
+  ticketIds: string[];
+  amount: number;
+  qrCode: string;
+  /** 3.11.0: печатные представления каждого билета (отдельный QR на билет). */
+  tickets: PrintableTicket[];
+}
+
+export interface OpenShiftRequest {
+  cashierId: string;
+  /** наличные в кассе на начало смены (копейки) */
+  openingCash: number;
+}
+
+export interface CloseShiftRequest {
+  cashierId: string;
+  /** фактически пересчитанные наличные на конец смены (копейки) */
+  countedCash: number;
+}
+
+export interface GetCurrentShiftRequest {
+  cashierId: string;
+}
+
+export interface Shift {
+  id: string;
+  cashierId: string;
+  status: ShiftStatus;
+  openingCash: number;
+  openedAt: Timestamp | undefined;
+  closedAt?: Timestamp | undefined;
+}
+
+export interface ShiftReport {
+  shift: Shift | undefined;
+  salesCount: number;
+  /** сумма всех продаж смены (копейки) */
+  total: number;
+  cashTotal: number;
+  terminalTotal: number;
+  /** opening_cash + cash_total */
+  expectedCash: number;
+  countedCash: number;
+  /** counted_cash - expected_cash (отрицательное — недостача) */
+  difference: number;
+}
+
+export interface ListShiftSalesRequest {
+  cashierId: string;
+  /** по умолчанию — текущая открытая смена */
+  shiftId?: string | undefined;
+}
+
+export interface ListShiftSalesResponse {
+  sales: CashierSaleItem[];
+}
+
+export interface CashierSaleItem {
+  orderId: string;
+  screeningId: string;
+  amount: number;
+  paymentType: string;
+  soldAt: Timestamp | undefined;
+}
 
 export interface GetUserBookingsRequest {
   userId: string;
@@ -16,6 +105,15 @@ export interface GetUserBookingsRequest {
 
 export interface GetUserBookingsResponse {
   bookings: BookingItem[];
+}
+
+export interface GetBookingRequest {
+  id: string;
+  userId: string;
+}
+
+export interface GetBookingResponse {
+  booking: BookingItem | undefined;
 }
 
 export interface CreateReservationRequest {
@@ -67,6 +165,12 @@ export interface BookingSeatInfo {
   id: string;
   row: number;
   number: number;
+  /** 3.7.0: заказ может охватывать несколько секторов — сектор у каждого места. */
+  sectorName: string;
+  /** 3.11.0: отдельный билет и его QR (для термопечати и контроля на входе). */
+  ticketId: string;
+  /** data-URI PNG; у исторических билетов пусто — фолбэк на BookingItem.qr_code. */
+  qrCode: string;
 }
 
 export interface BookingEventInfo {
@@ -80,20 +184,174 @@ export interface BookingArenaInfo {
   name: string;
 }
 
-export interface BookingSectorInfo {
-  id: string;
-  name: string;
-}
-
 export interface BookingItem {
   id: string;
   screeningDate: string;
   screeningTime: string;
   event: BookingEventInfo | undefined;
-  arena: BookingArenaInfo | undefined;
-  sector: BookingSectorInfo | undefined;
+  arena:
+    | BookingArenaInfo
+    | undefined;
+  /** 6 (BookingSectorInfo sector) удалён в 3.7.0 — сектор теперь у каждого места. */
   seats: BookingSeatInfo[];
   qrCode: string;
+  /** 3.11.0: SALE | COMP; статус заказа (PAID / VOIDED / ...). */
+  kind: string;
+  status: string;
+}
+
+/** Печатное представление одного билета (термопринтер / повторная печать). */
+export interface PrintableTicket {
+  ticketId: string;
+  orderId: string;
+  eventTitle: string;
+  screeningDate: string;
+  screeningTime: string;
+  venueName: string;
+  sectorName: string;
+  row: number;
+  number: number;
+  /** копейки; у пригласительных 0. */
+  price: number;
+  /** строка, которую кодирует QR (обычно ticket_id). */
+  qrData: string;
+  isComp: boolean;
+}
+
+export interface IssueComplimentaryRequest {
+  screeningId: string;
+  seats: SeatInput[];
+  /** id админа, выдавшего пригласительные. */
+  issuedBy: string;
+  note: string;
+}
+
+export interface IssueComplimentaryResponse {
+  orderId: string;
+  tickets: PrintableTicket[];
+}
+
+export interface VoidOrderRequest {
+  orderId: string;
+  actorId: string;
+  reason: string;
+}
+
+export interface VoidOrderResponse {
+  /** false, если заказ уже был VOIDED (идемпотентный no-op). */
+  changed: boolean;
+}
+
+export interface ArchiveScreeningCompsRequest {
+  screeningId: string;
+  actorId: string;
+}
+
+export interface ArchiveScreeningCompsResponse {
+  voidedOrders: number;
+}
+
+export interface ListOrdersRequest {
+  screeningId?:
+    | string
+    | undefined;
+  /** фильтр по статусу заказа; пусто = активные (без VOIDED). */
+  status?:
+    | string
+    | undefined;
+  /** SALE | COMP; пусто = только SALE. */
+  kind?: string | undefined;
+  cursor?: string | undefined;
+  limit: number;
+}
+
+export interface OrderListItem {
+  id: string;
+  kind: string;
+  status: string;
+  amount: number;
+  createdAt: Timestamp | undefined;
+  screeningId: string;
+  eventTitle: string;
+  seatCount: number;
+  /** касса | онлайн | пригласительный — краткий признак для списка. */
+  source: string;
+}
+
+export interface ListOrdersResponse {
+  orders: OrderListItem[];
+  nextCursor: string;
+}
+
+export interface ListTicketAuditRequest {
+  screeningId?: string | undefined;
+  from?: Timestamp | undefined;
+  to?:
+    | Timestamp
+    | undefined;
+  /** ISSUED_COMP | VOIDED | COMP_ARCHIVED */
+  action?: string | undefined;
+  cursor?: string | undefined;
+  limit: number;
+}
+
+export interface TicketAuditItem {
+  id: string;
+  action: string;
+  actorId: string;
+  orderId: string;
+  ticketId: string;
+  reason: string;
+  createdAt: Timestamp | undefined;
+  metaJson: string;
+}
+
+export interface ListTicketAuditResponse {
+  entries: TicketAuditItem[];
+  nextCursor: string;
+}
+
+export interface GetPrintableTicketsRequest {
+  orderId: string;
+}
+
+export interface GetPrintableTicketsResponse {
+  tickets: PrintableTicket[];
+}
+
+export interface ValidateTicketRequest {
+  ticketId: string;
+}
+
+export interface ValidateTicketResponse {
+  /** true, только если билет активен (PAID и не VOIDED). */
+  valid: boolean;
+  /** PAID | VOIDED | RESERVED | NOT_FOUND */
+  status: string;
+  isComp: boolean;
+  eventTitle: string;
+  screeningDate: string;
+  screeningTime: string;
+  venueName: string;
+  sectorName: string;
+  row: number;
+  number: number;
+}
+
+export interface GetPrintTemplateRequest {
+}
+
+export interface GetPrintTemplateResponse {
+  /** JSON-строка с настройками макета. */
+  settingsJson: string;
+}
+
+export interface SetPrintTemplateRequest {
+  settingsJson: string;
+}
+
+export interface SetPrintTemplateResponse {
+  ok: boolean;
 }
 
 export const BOOKING_V1_PACKAGE_NAME = "booking.v1";
@@ -102,6 +360,10 @@ export interface BookingServiceClient {
   /** Получение всех активных броней пользователя */
 
   getUserBookings(request: GetUserBookingsRequest): Observable<GetUserBookingsResponse>;
+
+  /** Получение одной брони по id (с проверкой владельца) */
+
+  getBooking(request: GetBookingRequest): Observable<GetBookingResponse>;
 
   /** создание брони */
 
@@ -118,6 +380,69 @@ export interface BookingServiceClient {
   /** получение занятых мест */
 
   listReservedSeats(request: ListReservedSeatsRequest): Observable<ListReservedSeatsResponse>;
+
+  /**
+   * ===== Касса: смены и продажи =====
+   * Продажа на кассе: бронь + подтверждение + учёт в открытой смене кассира.
+   */
+
+  createCashierSale(request: CreateCashierSaleRequest): Observable<CreateCashierSaleResponse>;
+
+  /** Открыть смену (одна открытая смена на кассира). */
+
+  openShift(request: OpenShiftRequest): Observable<Shift>;
+
+  /** Закрыть смену — возвращает отчёт со сверкой кассы. */
+
+  closeShift(request: CloseShiftRequest): Observable<ShiftReport>;
+
+  /** Текущая открытая смена кассира (NOT_FOUND, если нет). */
+
+  getCurrentShift(request: GetCurrentShiftRequest): Observable<Shift>;
+
+  /** Продажи смены. */
+
+  listShiftSales(request: ListShiftSalesRequest): Observable<ListShiftSalesResponse>;
+
+  /**
+   * ===== 3.11.0: пригласительные, аннулирование, журнал, печать =====
+   * Выдать пригласительные билеты (0 ₽, без оплаты) — только ADMIN.
+   */
+
+  issueComplimentary(request: IssueComplimentaryRequest): Observable<IssueComplimentaryResponse>;
+
+  /**
+   * Аннулировать заказ: место освобождается, билеты → VOIDED, запись в журнал.
+   * Идемпотентно. Деньги покупателю НЕ возвращаются (это отдельная операция).
+   */
+
+  voidOrder(request: VoidOrderRequest): Observable<VoidOrderResponse>;
+
+  /** Убрать все пригласительные сеанса после матча (bulk void). */
+
+  archiveScreeningComps(request: ArchiveScreeningCompsRequest): Observable<ArchiveScreeningCompsResponse>;
+
+  /** Админский список заказов (по умолчанию без VOIDED и COMP). */
+
+  listOrders(request: ListOrdersRequest): Observable<ListOrdersResponse>;
+
+  /** Журнал действий по билетам (выдача пригласительных / аннулирование). */
+
+  listTicketAudit(request: ListTicketAuditRequest): Observable<ListTicketAuditResponse>;
+
+  /** Печатные представления билетов заказа (для термопечати / повторной печати). */
+
+  getPrintableTickets(request: GetPrintableTicketsRequest): Observable<GetPrintableTicketsResponse>;
+
+  /** Проверка билета по id из QR (контроль на входе). Read-only. */
+
+  validateTicket(request: ValidateTicketRequest): Observable<ValidateTicketResponse>;
+
+  /** Макет термопечати (singleton). */
+
+  getPrintTemplate(request: GetPrintTemplateRequest): Observable<GetPrintTemplateResponse>;
+
+  setPrintTemplate(request: SetPrintTemplateRequest): Observable<SetPrintTemplateResponse>;
 }
 
 export interface BookingServiceController {
@@ -126,6 +451,12 @@ export interface BookingServiceController {
   getUserBookings(
     request: GetUserBookingsRequest,
   ): Promise<GetUserBookingsResponse> | Observable<GetUserBookingsResponse> | GetUserBookingsResponse;
+
+  /** Получение одной брони по id (с проверкой владельца) */
+
+  getBooking(
+    request: GetBookingRequest,
+  ): Promise<GetBookingResponse> | Observable<GetBookingResponse> | GetBookingResponse;
 
   /** создание брони */
 
@@ -150,16 +481,114 @@ export interface BookingServiceController {
   listReservedSeats(
     request: ListReservedSeatsRequest,
   ): Promise<ListReservedSeatsResponse> | Observable<ListReservedSeatsResponse> | ListReservedSeatsResponse;
+
+  /**
+   * ===== Касса: смены и продажи =====
+   * Продажа на кассе: бронь + подтверждение + учёт в открытой смене кассира.
+   */
+
+  createCashierSale(
+    request: CreateCashierSaleRequest,
+  ): Promise<CreateCashierSaleResponse> | Observable<CreateCashierSaleResponse> | CreateCashierSaleResponse;
+
+  /** Открыть смену (одна открытая смена на кассира). */
+
+  openShift(request: OpenShiftRequest): Promise<Shift> | Observable<Shift> | Shift;
+
+  /** Закрыть смену — возвращает отчёт со сверкой кассы. */
+
+  closeShift(request: CloseShiftRequest): Promise<ShiftReport> | Observable<ShiftReport> | ShiftReport;
+
+  /** Текущая открытая смена кассира (NOT_FOUND, если нет). */
+
+  getCurrentShift(request: GetCurrentShiftRequest): Promise<Shift> | Observable<Shift> | Shift;
+
+  /** Продажи смены. */
+
+  listShiftSales(
+    request: ListShiftSalesRequest,
+  ): Promise<ListShiftSalesResponse> | Observable<ListShiftSalesResponse> | ListShiftSalesResponse;
+
+  /**
+   * ===== 3.11.0: пригласительные, аннулирование, журнал, печать =====
+   * Выдать пригласительные билеты (0 ₽, без оплаты) — только ADMIN.
+   */
+
+  issueComplimentary(
+    request: IssueComplimentaryRequest,
+  ): Promise<IssueComplimentaryResponse> | Observable<IssueComplimentaryResponse> | IssueComplimentaryResponse;
+
+  /**
+   * Аннулировать заказ: место освобождается, билеты → VOIDED, запись в журнал.
+   * Идемпотентно. Деньги покупателю НЕ возвращаются (это отдельная операция).
+   */
+
+  voidOrder(request: VoidOrderRequest): Promise<VoidOrderResponse> | Observable<VoidOrderResponse> | VoidOrderResponse;
+
+  /** Убрать все пригласительные сеанса после матча (bulk void). */
+
+  archiveScreeningComps(
+    request: ArchiveScreeningCompsRequest,
+  ): Promise<ArchiveScreeningCompsResponse> | Observable<ArchiveScreeningCompsResponse> | ArchiveScreeningCompsResponse;
+
+  /** Админский список заказов (по умолчанию без VOIDED и COMP). */
+
+  listOrders(
+    request: ListOrdersRequest,
+  ): Promise<ListOrdersResponse> | Observable<ListOrdersResponse> | ListOrdersResponse;
+
+  /** Журнал действий по билетам (выдача пригласительных / аннулирование). */
+
+  listTicketAudit(
+    request: ListTicketAuditRequest,
+  ): Promise<ListTicketAuditResponse> | Observable<ListTicketAuditResponse> | ListTicketAuditResponse;
+
+  /** Печатные представления билетов заказа (для термопечати / повторной печати). */
+
+  getPrintableTickets(
+    request: GetPrintableTicketsRequest,
+  ): Promise<GetPrintableTicketsResponse> | Observable<GetPrintableTicketsResponse> | GetPrintableTicketsResponse;
+
+  /** Проверка билета по id из QR (контроль на входе). Read-only. */
+
+  validateTicket(
+    request: ValidateTicketRequest,
+  ): Promise<ValidateTicketResponse> | Observable<ValidateTicketResponse> | ValidateTicketResponse;
+
+  /** Макет термопечати (singleton). */
+
+  getPrintTemplate(
+    request: GetPrintTemplateRequest,
+  ): Promise<GetPrintTemplateResponse> | Observable<GetPrintTemplateResponse> | GetPrintTemplateResponse;
+
+  setPrintTemplate(
+    request: SetPrintTemplateRequest,
+  ): Promise<SetPrintTemplateResponse> | Observable<SetPrintTemplateResponse> | SetPrintTemplateResponse;
 }
 
 export function BookingServiceControllerMethods() {
   return function (constructor: Function) {
     const grpcMethods: string[] = [
       "getUserBookings",
+      "getBooking",
       "createReservation",
       "confirmBooking",
       "cancelBooking",
       "listReservedSeats",
+      "createCashierSale",
+      "openShift",
+      "closeShift",
+      "getCurrentShift",
+      "listShiftSales",
+      "issueComplimentary",
+      "voidOrder",
+      "archiveScreeningComps",
+      "listOrders",
+      "listTicketAudit",
+      "getPrintableTickets",
+      "validateTicket",
+      "getPrintTemplate",
+      "setPrintTemplate",
     ];
     for (const method of grpcMethods) {
       const descriptor: any = Reflect.getOwnPropertyDescriptor(constructor.prototype, method);
