@@ -13,6 +13,12 @@ service PricingService {
     // билета.
     rpc CalculatePrice (CalculatePriceRequest) returns (CalculatePriceResponse);
 
+    // Пакетный расчёт цены нескольких билетов одного заказа (booking-service
+    // при бронировании на несколько мест — вместо N поштучных CalculatePrice).
+    // Для каждого элемента создаётся собственный PriceSnapshot. Результаты
+    // возвращаются в том же порядке, что и items.
+    rpc CalculatePrices (CalculatePricesRequest) returns (CalculatePricesResponse);
+
     // Базовая цена сектора на конкретный сеанс
     rpc SetPriceTemplate (SetPriceTemplateRequest) returns (PriceTemplate);
     rpc GetPriceTemplate (GetPriceTemplateRequest) returns (PriceTemplate);
@@ -73,6 +79,36 @@ message CalculatePriceResponse {
 message AppliedRule {
     string name = 1;
     double amount = 2;
+}
+
+// ===== CalculatePrices (batch) =====
+
+message CalculatePricesItem {
+    string sector_id = 1;
+    // Пусто для GENERAL_ADMISSION-секторов без конкретных мест.
+    optional string seat_id = 2;
+}
+
+message CalculatePricesRequest {
+    string screening_id = 1;
+    string user_id = 2;
+    repeated CalculatePricesItem items = 3;
+    optional string audience_code = 4;
+    optional string promo_code = 5;
+    // Общее число билетов в заказе (для условий ticket_count). 0 → items.length.
+    int32 quantity = 6;
+    optional google.protobuf.Timestamp purchase_date = 7;
+}
+
+message CalculatePricesResult {
+    // Эхо seat_id из запроса ('' для GA).
+    string seat_id = 1;
+    double final_price = 2;
+    string snapshot_id = 3;
+}
+
+message CalculatePricesResponse {
+    repeated CalculatePricesResult results = 1;
 }
 
 // ===== PriceTemplate =====

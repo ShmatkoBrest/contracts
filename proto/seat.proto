@@ -5,6 +5,10 @@ package seat.v1;
 service SeatService {
     // Получение места по id
     rpc GetSeat (GetSeatRequest) returns (GetSeatResponse);
+    // Пакетное получение мест по списку id (booking-service при бронировании
+    // на несколько мест — вместо N поштучных GetSeat). Статус брони не
+    // вычисляется. Несуществующие id молча пропускаются.
+    rpc GetSeats (GetSeatsRequest) returns (GetSeatsResponse);
     //Получение мест для конкретного сектора
     rpc ListSeatsBySector (ListSeatsRequest) returns (ListSeatsResponse);
 
@@ -16,6 +20,14 @@ message GetSeatRequest {
 
 message GetSeatResponse {
     Seat seat = 1;
+}
+
+message GetSeatsRequest {
+    repeated string ids = 1;
+}
+
+message GetSeatsResponse {
+    repeated Seat seats = 1;
 }
 
 message ListSeatsRequest {
