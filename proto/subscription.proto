@@ -24,6 +24,19 @@ service SubscriptionService {
     // Бронирования по абонементам
     rpc ReleaseSubscriptionSeat (ReleaseSubscriptionSeatRequest) returns (DeleteResponse);
     rpc ListSubscriptionReservations (ListSubscriptionReservationsRequest) returns (ListSubscriptionReservationsResponse);
+
+    // ===== 3.13.0: продление абонементов на новый сезон =====
+    // Кампании продления (админ)
+    rpc CreateRenewalCampaign (CreateRenewalCampaignRequest) returns (RenewalCampaign);
+    rpc UpdateRenewalCampaign (UpdateRenewalCampaignRequest) returns (RenewalCampaign);
+    rpc StartRenewalCampaign (RenewalCampaignIdRequest) returns (RenewalCampaign);
+    rpc CloseRenewalCampaign (RenewalCampaignIdRequest) returns (RenewalCampaign);
+    rpc ListRenewalCampaigns (ListRenewalCampaignsRequest) returns (ListRenewalCampaignsResponse);
+    // Продление (пользователь)
+    rpc ListRenewalOffers (ListRenewalOffersRequest) returns (ListRenewalOffersResponse);
+    rpc RenewSubscription (RenewSubscriptionRequest) returns (PurchaseSubscriptionResponse);
+    rpc GetSeasonSeatMap (GetSeasonSeatMapRequest) returns (GetSeasonSeatMapResponse);
+    rpc ReleaseSeasonSeat (ReleaseSeasonSeatRequest) returns (DeleteResponse);
 }
 
 // ===== SubscriptionPlan =====
@@ -81,6 +94,9 @@ message SubscriptionPlan {
     int32 price = 5;
     bool active = 6;
     repeated string event_group_ids = 7;
+    // 3.13.0: id активной кампании продления, целью которой является этот план
+    // (пусто, если такой нет). Фронту — чтобы включить карту мест сезона.
+    string renewal_campaign_id = 8;
 }
 
 // ===== UserSubscription =====
@@ -180,4 +196,120 @@ message SubscriptionReservation {
 
 message DeleteResponse {
     bool ok = 1;
+}
+
+// ===== 3.13.0: продление абонементов =====
+
+enum RenewalCampaignStatus {
+    RC_DRAFT = 0;
+    RC_ACTIVE = 1;
+    RC_CLOSED = 2;
+}
+
+message RenewalCampaign {
+    string id = 1;
+    string from_plan_id = 2;
+    string to_plan_id = 3;
+    // Длина окна приоритета в днях от started_at.
+    int32 priority_days = 4;
+    optional google.protobuf.Timestamp started_at = 5;
+    RenewalCampaignStatus status = 6;
+    // Скидка (0..100 %) для продления держателем абонемента from_plan.
+    int32 renewal_discount_pct = 7;
+    // Скидка (0..100 %) для любой покупки to_plan до early_bird_deadline.
+    int32 early_bird_discount_pct = 8;
+    optional google.protobuf.Timestamp early_bird_deadline = 9;
+    // Вычисляемые: "PRIORITY" | "OPEN" | "" (для DRAFT/CLOSED).
+    string phase = 10;
+    optional google.protobuf.Timestamp priority_until = 11;
+}
+
+message RenewalCampaignIdRequest {
+    string id = 1;
+}
+
+message CreateRenewalCampaignRequest {
+    string from_plan_id = 1;
+    string to_plan_id = 2;
+    int32 priority_days = 3;
+    int32 renewal_discount_pct = 4;
+    int32 early_bird_discount_pct = 5;
+    optional google.protobuf.Timestamp early_bird_deadline = 6;
+}
+
+message UpdateRenewalCampaignRequest {
+    string id = 1;
+    optional int32 priority_days = 2;
+    optional int32 renewal_discount_pct = 3;
+    optional int32 early_bird_discount_pct = 4;
+    optional google.protobuf.Timestamp early_bird_deadline = 5;
+}
+
+message ListRenewalCampaignsRequest {
+    optional RenewalCampaignStatus status = 1;
+}
+
+message ListRenewalCampaignsResponse {
+    repeated RenewalCampaign campaigns = 1;
+}
+
+message SeatRef {
+    string seat_id = 1;
+    string sector_id = 2;
+}
+
+message RenewalOffer {
+    string campaign_id = 1;
+    string from_subscription_id = 2;
+    string to_plan_id = 3;
+    string to_plan_title = 4;
+    // Текущие места абонемента (строго свои — приоритет на продление).
+    repeated SeatRef my_seats = 5;
+    string phase = 6;
+    optional google.protobuf.Timestamp priority_until = 7;
+    // Цена продления «своё место» (с учётом скидки продления).
+    int32 price_keep = 8;
+    // Базовая цена to_plan без скидок.
+    int32 base_price = 9;
+}
+
+message ListRenewalOffersRequest {
+    string user_id = 1;
+}
+
+message ListRenewalOffersResponse {
+    repeated RenewalOffer offers = 1;
+}
+
+message RenewSubscriptionRequest {
+    string user_id = 1;
+    string from_subscription_id = 2;
+    // Пусто → продлить своё место. Иначе — другое место; в фазе PRIORITY
+    // должно быть доступно по карте мест сезона.
+    optional string seat_id = 3;
+    optional string sector_id = 4;
+}
+
+message GetSeasonSeatMapRequest {
+    string campaign_id = 1;
+    string user_id = 2;
+    optional string sector_id = 3;
+}
+
+message SeasonSeat {
+    string seat_id = 1;
+    // MINE | TAKEN | HELD
+    string status = 2;
+}
+
+message GetSeasonSeatMapResponse {
+    string phase = 1;
+    // Только места со статусом; остальные фронт трактует как свободные (OPEN)
+    // либо недоступные (PRIORITY).
+    repeated SeasonSeat seats = 2;
+}
+
+message ReleaseSeasonSeatRequest {
+    string user_id = 1;
+    string from_subscription_id = 2;
 }

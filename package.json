@@ -1,6 +1,6 @@
 {
   "name": "@usteam/contracts",
-  "version": "3.12.0",
+  "version": "3.13.0",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "scripts": {
