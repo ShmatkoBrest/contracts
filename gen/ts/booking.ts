@@ -216,6 +216,8 @@ export interface PrintableTicket {
   /** строка, которую кодирует QR (обычно ticket_id). */
   qrData: string;
   isComp: boolean;
+  /** 3.12.0: id события — чтобы выбрать макет печати события. */
+  eventId: string;
 }
 
 export interface IssueComplimentaryRequest {
@@ -339,15 +341,26 @@ export interface ValidateTicketResponse {
 }
 
 export interface GetPrintTemplateRequest {
+  /**
+   * 3.12.0: пусто = общий макет по умолчанию; иначе — макет события
+   * (с откатом на умолчание, если у события своего нет).
+   */
+  eventId: string;
 }
 
 export interface GetPrintTemplateResponse {
   /** JSON-строка с настройками макета. */
   settingsJson: string;
+  /** 3.12.0: true, если вернулся макет самого события, а не общий по умолчанию. */
+  isOverride: boolean;
 }
 
 export interface SetPrintTemplateRequest {
   settingsJson: string;
+  /** 3.12.0: пусто = общий макет по умолчанию. */
+  eventId: string;
+  /** 3.12.0: true + event_id → удалить макет события (вернуться к умолчанию). */
+  delete: boolean;
 }
 
 export interface SetPrintTemplateResponse {
@@ -438,7 +451,7 @@ export interface BookingServiceClient {
 
   validateTicket(request: ValidateTicketRequest): Observable<ValidateTicketResponse>;
 
-  /** Макет термопечати (singleton). */
+  /** Макет термопечати: общий по умолчанию + переопределения под событие (3.12.0). */
 
   getPrintTemplate(request: GetPrintTemplateRequest): Observable<GetPrintTemplateResponse>;
 
@@ -555,7 +568,7 @@ export interface BookingServiceController {
     request: ValidateTicketRequest,
   ): Promise<ValidateTicketResponse> | Observable<ValidateTicketResponse> | ValidateTicketResponse;
 
-  /** Макет термопечати (singleton). */
+  /** Макет термопечати: общий по умолчанию + переопределения под событие (3.12.0). */
 
   getPrintTemplate(
     request: GetPrintTemplateRequest,

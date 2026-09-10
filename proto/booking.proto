@@ -46,7 +46,7 @@ service BookingService {
     rpc GetPrintableTickets (GetPrintableTicketsRequest) returns (GetPrintableTicketsResponse);
     // Проверка билета по id из QR (контроль на входе). Read-only.
     rpc ValidateTicket (ValidateTicketRequest) returns (ValidateTicketResponse);
-    // Макет термопечати (singleton).
+    // Макет термопечати: общий по умолчанию + переопределения под событие (3.12.0).
     rpc GetPrintTemplate (GetPrintTemplateRequest) returns (GetPrintTemplateResponse);
     rpc SetPrintTemplate (SetPrintTemplateRequest) returns (SetPrintTemplateResponse);
 }
@@ -255,6 +255,8 @@ message PrintableTicket {
     // строка, которую кодирует QR (обычно ticket_id).
     string qr_data = 11;
     bool is_comp = 12;
+    // 3.12.0: id события — чтобы выбрать макет печати события.
+    string event_id = 13;
 }
 
 message IssueComplimentaryRequest {
@@ -371,15 +373,25 @@ message ValidateTicketResponse {
     int32 number = 10;
 }
 
-message GetPrintTemplateRequest {}
+message GetPrintTemplateRequest {
+    // 3.12.0: пусто = общий макет по умолчанию; иначе — макет события
+    // (с откатом на умолчание, если у события своего нет).
+    string event_id = 1;
+}
 
 message GetPrintTemplateResponse {
     // JSON-строка с настройками макета.
     string settings_json = 1;
+    // 3.12.0: true, если вернулся макет самого события, а не общий по умолчанию.
+    bool is_override = 2;
 }
 
 message SetPrintTemplateRequest {
     string settings_json = 1;
+    // 3.12.0: пусто = общий макет по умолчанию.
+    string event_id = 2;
+    // 3.12.0: true + event_id → удалить макет события (вернуться к умолчанию).
+    bool delete = 3;
 }
 
 message SetPrintTemplateResponse {
