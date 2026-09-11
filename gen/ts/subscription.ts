@@ -102,15 +102,25 @@ export interface SubscriptionPlan {
 export interface PurchaseSubscriptionRequest {
   userId: string;
   planId: string;
-  /** Обязательны для планов с type = FIXED_SEAT. */
+  /**
+   * Одно место (обратная совместимость) — трактуется как один элемент seats,
+   * если seats пуст. Обязательны (одно из двух) для планов с type = FIXED_SEAT.
+   */
   seatId?: string | undefined;
-  sectorId?: string | undefined;
+  sectorId?:
+    | string
+    | undefined;
+  /** 3.15.0: несколько мест — несколько отдельных подписок одним платежом. */
+  seats: SeatRef[];
 }
 
 export interface PurchaseSubscriptionResponse {
+  /** Первая созданная подписка (обратная совместимость). */
   subscriptionId: string;
-  /** Ссылка на форму оплаты у провайдера. */
+  /** Ссылка на форму оплаты у провайдера — одна на все созданные подписки. */
   url: string;
+  /** 3.15.0: все подписки, созданные этой покупкой. */
+  subscriptionIds: string[];
 }
 
 export interface CancelSubscriptionRequest {
@@ -136,7 +146,14 @@ export interface UserSubscription {
   planId: string;
   status: SubscriptionStatus;
   validFrom?: Timestamp | undefined;
-  validTo?: Timestamp | undefined;
+  validTo?:
+    | Timestamp
+    | undefined;
+  /**
+   * 3.15.0: закреплённые места (обычно одно — см. решение "несколько мест =
+   * несколько подписок"). Пусто для GENERAL_ADMISSION.
+   */
+  seats: SeatRef[];
 }
 
 export interface CheckSubscriptionAccessRequest {
@@ -292,6 +309,16 @@ export interface ReleaseSeasonSeatRequest {
   fromSubscriptionId: string;
 }
 
+export interface GetPlanSeatMapRequest {
+  planId: string;
+  sectorId?: string | undefined;
+}
+
+export interface GetPlanSeatMapResponse {
+  /** Только занятые места (status всегда "TAKEN"); остальные — свободны. */
+  seats: SeasonSeat[];
+}
+
 export const SUBSCRIPTION_V1_PACKAGE_NAME = "subscription.v1";
 
 export interface SubscriptionServiceClient {
@@ -353,6 +380,13 @@ export interface SubscriptionServiceClient {
   getSeasonSeatMap(request: GetSeasonSeatMapRequest): Observable<GetSeasonSeatMapResponse>;
 
   releaseSeasonSeat(request: ReleaseSeasonSeatRequest): Observable<DeleteResponse>;
+
+  /**
+   * 3.15.0: занятость мест плана вне кампании продления (для отображения при
+   * прямой покупке и для защиты от повторной продажи одного места).
+   */
+
+  getPlanSeatMap(request: GetPlanSeatMapRequest): Observable<GetPlanSeatMapResponse>;
 }
 
 export interface SubscriptionServiceController {
@@ -460,6 +494,15 @@ export interface SubscriptionServiceController {
   releaseSeasonSeat(
     request: ReleaseSeasonSeatRequest,
   ): Promise<DeleteResponse> | Observable<DeleteResponse> | DeleteResponse;
+
+  /**
+   * 3.15.0: занятость мест плана вне кампании продления (для отображения при
+   * прямой покупке и для защиты от повторной продажи одного места).
+   */
+
+  getPlanSeatMap(
+    request: GetPlanSeatMapRequest,
+  ): Promise<GetPlanSeatMapResponse> | Observable<GetPlanSeatMapResponse> | GetPlanSeatMapResponse;
 }
 
 export function SubscriptionServiceControllerMethods() {
@@ -486,6 +529,7 @@ export function SubscriptionServiceControllerMethods() {
       "renewSubscription",
       "getSeasonSeatMap",
       "releaseSeasonSeat",
+      "getPlanSeatMap",
     ];
     for (const method of grpcMethods) {
       const descriptor: any = Reflect.getOwnPropertyDescriptor(constructor.prototype, method);

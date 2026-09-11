@@ -37,6 +37,9 @@ service SubscriptionService {
     rpc RenewSubscription (RenewSubscriptionRequest) returns (PurchaseSubscriptionResponse);
     rpc GetSeasonSeatMap (GetSeasonSeatMapRequest) returns (GetSeasonSeatMapResponse);
     rpc ReleaseSeasonSeat (ReleaseSeasonSeatRequest) returns (DeleteResponse);
+    // 3.15.0: занятость мест плана вне кампании продления (для отображения при
+    // прямой покупке и для защиты от повторной продажи одного места).
+    rpc GetPlanSeatMap (GetPlanSeatMapRequest) returns (GetPlanSeatMapResponse);
 }
 
 // ===== SubscriptionPlan =====
@@ -112,15 +115,21 @@ enum SubscriptionStatus {
 message PurchaseSubscriptionRequest {
     string user_id = 1;
     string plan_id = 2;
-    // Обязательны для планов с type = FIXED_SEAT.
+    // Одно место (обратная совместимость) — трактуется как один элемент seats,
+    // если seats пуст. Обязательны (одно из двух) для планов с type = FIXED_SEAT.
     optional string seat_id = 3;
     optional string sector_id = 4;
+    // 3.15.0: несколько мест — несколько отдельных подписок одним платежом.
+    repeated SeatRef seats = 5;
 }
 
 message PurchaseSubscriptionResponse {
+    // Первая созданная подписка (обратная совместимость).
     string subscription_id = 1;
-    // Ссылка на форму оплаты у провайдера.
+    // Ссылка на форму оплаты у провайдера — одна на все созданные подписки.
     string url = 2;
+    // 3.15.0: все подписки, созданные этой покупкой.
+    repeated string subscription_ids = 3;
 }
 
 message CancelSubscriptionRequest {
@@ -147,6 +156,9 @@ message UserSubscription {
     SubscriptionStatus status = 4;
     optional google.protobuf.Timestamp valid_from = 5;
     optional google.protobuf.Timestamp valid_to = 6;
+    // 3.15.0: закреплённые места (обычно одно — см. решение "несколько мест =
+    // несколько подписок"). Пусто для GENERAL_ADMISSION.
+    repeated SeatRef seats = 7;
 }
 
 // ===== Access =====
@@ -312,4 +324,16 @@ message GetSeasonSeatMapResponse {
 message ReleaseSeasonSeatRequest {
     string user_id = 1;
     string from_subscription_id = 2;
+}
+
+// ===== 3.15.0: занятость мест плана без кампании =====
+
+message GetPlanSeatMapRequest {
+    string plan_id = 1;
+    optional string sector_id = 2;
+}
+
+message GetPlanSeatMapResponse {
+    // Только занятые места (status всегда "TAKEN"); остальные — свободны.
+    repeated SeasonSeat seats = 1;
 }
