@@ -29,7 +29,19 @@ export interface CreateSectorRequest {
   /** По умолчанию RESERVED (0) — обычный сектор с конкретными местами. */
   mode: SectorMode;
   /** Обязателен при mode = GENERAL_ADMISSION, иначе игнорируется. */
-  capacity?: number | undefined;
+  capacity?:
+    | number
+    | undefined;
+  /**
+   * Свободный режим редактора: явные координаты каждого места. Если
+   * непусто — используется вместо генерации из `layout`.
+   */
+  seats: SeatPositionInput[];
+  /**
+   * Метаданные редактора (полигон сектора на плане арены, трансформ) —
+   * JSON-строка, arena-service хранит как есть.
+   */
+  shapeJson?: string | undefined;
 }
 
 export interface CreateSectorResponse {
@@ -48,8 +60,14 @@ export interface GetSectorWithSeatsResponse {
   sector:
     | Sector
     | undefined;
-  /** Актуально только для mode = RESERVED; для GENERAL_ADMISSION — пустой список. */
+  /**
+   * Актуально только для mode = RESERVED; для GENERAL_ADMISSION — пустой список.
+   * Реконструкция по рядам: geometry-поля (curve/spacing/gaps) не
+   * восстанавливаются, они «запечены» в x/y мест — см. `seats`.
+   */
   layout: RowLayout[];
+  /** Все места сектора с точными координатами и id (для конструктора §12). */
+  seats: SeatDetail[];
 }
 
 export interface ListSectorsRequest {
@@ -60,11 +78,24 @@ export interface ListSectorsResponse {
   sectors: Sector[];
 }
 
+export interface SeatPositionInput {
+  row: number;
+  number: number;
+  x: number;
+  y: number;
+  type: string;
+}
+
 export interface UpdateSectorRequest {
   id: string;
   name: string;
   /** Используется только для секторов с mode = RESERVED. */
   layout: RowLayout[];
+  /** Свободный режим (см. CreateSectorRequest.seats). */
+  seats: SeatPositionInput[];
+  shapeJson?:
+    | string
+    | undefined;
   /**
    * Используется только для секторов с mode = GENERAL_ADMISSION.
    * Режим сектора (mode) неизменяем после создания — здесь его нет
@@ -92,12 +123,66 @@ export interface Sector {
   name: string;
   arenaId: string;
   mode: SectorMode;
-  capacity?: number | undefined;
+  capacity?:
+    | number
+    | undefined;
+  /** Метаданные редактора зала (полигон/трансформ) — JSON-строка. */
+  shapeJson?:
+    | string
+    | undefined;
+  /**
+   * 3.17.0: фактическое число мест сектора (COUNT по таблице seats) — для
+   * RESERVED-секторов, где `capacity` не заполняется (она осмыслена только
+   * для GENERAL_ADMISSION). Пусто/0, если мест ещё не раскладывали.
+   */
+  seatCount?: number | undefined;
 }
 
 export interface RowLayout {
   row: number;
+  /** Кол-во реальных мест в ряду. */
   columns: number;
+  type: string;
+  /**
+   * Геометрия/нумерация ряда — всё опционально, при отсутствии
+   * arena-service ведёт себя как раньше (прямоугольная сетка,
+   * x = номер места, y = номер ряда, нумерация с 1).
+   */
+  startNumber?:
+    | number
+    | undefined;
+  /** номера-проходы: слот пропускается (место не создаётся) */
+  gaps: number[];
+  /** шаг между местами по X (по умолчанию 1) */
+  seatSpacing?:
+    | number
+    | undefined;
+  /** шаг между рядами по Y (по умолчанию 1) */
+  rowSpacing?:
+    | number
+    | undefined;
+  /** сдвиг всего ряда по X (ступенчатые трибуны) */
+  offsetX?:
+    | number
+    | undefined;
+  /** кривизна ряда: смещение по Y = curve * (i - center)^2 */
+  curve?:
+    | number
+    | undefined;
+  /** нумеровать места справа-налево (по умолчанию слева-направо) */
+  numberRtl?: boolean | undefined;
+}
+
+/**
+ * Место с полной геометрией — для загрузки существующего сектора в конструктор
+ * (§12): нужны точные x/y и стабильный id (на него ссылается pricing).
+ */
+export interface SeatDetail {
+  id: string;
+  row: number;
+  number: number;
+  x: number;
+  y: number;
   type: string;
 }
 

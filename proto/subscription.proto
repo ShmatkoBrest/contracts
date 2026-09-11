@@ -277,6 +277,11 @@ message ListRenewalCampaignsResponse {
 message SeatRef {
     string seat_id = 1;
     string sector_id = 2;
+    // 3.17.0: скидка на конкретное место при кассовой продаже абонемента
+    // (0..100 %) — например, один держатель детский, другой полный тариф.
+    // Игнорируется вне CreateCashierSubscriptionSale (в PurchaseSubscription
+    // не читается).
+    optional int32 discount_pct = 3;
 }
 
 message RenewalOffer {
@@ -321,6 +326,11 @@ message SeasonSeat {
     string seat_id = 1;
     // MINE | TAKEN | HELD
     string status = 2;
+    // 3.17.0: непусто в GetPlanSeatMapResponse (карта занятости плана без
+    // фильтра по сектору — нужно знать, к какому сектору относится место, для
+    // подсчёта занято/свободно по секторам). Пусто в GetSeasonSeatMapResponse
+    // (там вызывающая сторона уже знает sector_id — сама его передала).
+    string sector_id = 3;
 }
 
 message GetSeasonSeatMapResponse {
@@ -356,19 +366,27 @@ message CreateCashierSubscriptionSaleRequest {
     // прямом вызове API.
     optional string customer_id = 2;
     string plan_id = 3;
-    // Пусто для GENERAL_ADMISSION (одна подписка без места).
+    // Пусто для GENERAL_ADMISSION (одна подписка без места). discount_pct
+    // каждого SeatRef — скидка именно на это место (0..100 %).
     repeated SeatRef seats = 4;
     // cash | terminal.
     string payment_type = 5;
     // Непрозрачная ссылка на открытую смену кассира в booking-service —
     // резолвится и передаётся gateway, subscription-service её не проверяет.
     string shift_id = 6;
+    // 3.17.0: скидка для GENERAL_ADMISSION-плана (там нет seats, поэтому
+    // discount_pct самого SeatRef неприменим). Игнорируется для FIXED_SEAT.
+    optional int32 discount_pct = 7;
 }
 
 message CashierSubscriptionSaleItem {
     string subscription_id = 1;
     // Пусто, если продажа сразу атрибутирована customer_id (привязывать нечего).
     string claim_code = 2;
+    // 3.17.0: фактическая цена именно этого места после скидки кассира
+    // (и, если применимо, скидки кампании продления) — места одной продажи
+    // могут стоить по-разному.
+    int32 amount = 3;
 }
 
 message CreateCashierSubscriptionSaleResponse {

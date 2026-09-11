@@ -250,6 +250,13 @@ export interface ListRenewalCampaignsResponse {
 export interface SeatRef {
   seatId: string;
   sectorId: string;
+  /**
+   * 3.17.0: скидка на конкретное место при кассовой продаже абонемента
+   * (0..100 %) — например, один держатель детский, другой полный тариф.
+   * Игнорируется вне CreateCashierSubscriptionSale (в PurchaseSubscription
+   * не читается).
+   */
+  discountPct?: number | undefined;
 }
 
 export interface RenewalOffer {
@@ -298,6 +305,13 @@ export interface SeasonSeat {
   seatId: string;
   /** MINE | TAKEN | HELD */
   status: string;
+  /**
+   * 3.17.0: непусто в GetPlanSeatMapResponse (карта занятости плана без
+   * фильтра по сектору — нужно знать, к какому сектору относится место, для
+   * подсчёта занято/свободно по секторам). Пусто в GetSeasonSeatMapResponse
+   * (там вызывающая сторона уже знает sector_id — сама его передала).
+   */
+  sectorId: string;
 }
 
 export interface GetSeasonSeatMapResponse {
@@ -333,7 +347,10 @@ export interface CreateCashierSubscriptionSaleRequest {
    */
   customerId?: string | undefined;
   planId: string;
-  /** Пусто для GENERAL_ADMISSION (одна подписка без места). */
+  /**
+   * Пусто для GENERAL_ADMISSION (одна подписка без места). discount_pct
+   * каждого SeatRef — скидка именно на это место (0..100 %).
+   */
   seats: SeatRef[];
   /** cash | terminal. */
   paymentType: string;
@@ -342,12 +359,23 @@ export interface CreateCashierSubscriptionSaleRequest {
    * резолвится и передаётся gateway, subscription-service её не проверяет.
    */
   shiftId: string;
+  /**
+   * 3.17.0: скидка для GENERAL_ADMISSION-плана (там нет seats, поэтому
+   * discount_pct самого SeatRef неприменим). Игнорируется для FIXED_SEAT.
+   */
+  discountPct?: number | undefined;
 }
 
 export interface CashierSubscriptionSaleItem {
   subscriptionId: string;
   /** Пусто, если продажа сразу атрибутирована customer_id (привязывать нечего). */
   claimCode: string;
+  /**
+   * 3.17.0: фактическая цена именно этого места после скидки кассира
+   * (и, если применимо, скидки кампании продления) — места одной продажи
+   * могут стоить по-разному.
+   */
+  amount: number;
 }
 
 export interface CreateCashierSubscriptionSaleResponse {

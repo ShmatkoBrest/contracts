@@ -117,6 +117,10 @@ message Sector {
     optional int32 capacity = 5;
     // Метаданные редактора зала (полигон/трансформ) — JSON-строка.
     optional string shape_json = 6;
+    // 3.17.0: фактическое число мест сектора (COUNT по таблице seats) — для
+    // RESERVED-секторов, где `capacity` не заполняется (она осмыслена только
+    // для GENERAL_ADMISSION). Пусто/0, если мест ещё не раскладывали.
+    optional int32 seat_count = 7;
 }
 
 message RowLayout {
