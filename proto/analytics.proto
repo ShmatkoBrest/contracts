@@ -21,6 +21,9 @@ service AnalyticsService {
 message PeriodRequest {
     optional string from = 1;
     optional string to = 2;
+    // 3.14.0: сузить до события/группы событий (взаимоисключающе на стороне клиента).
+    optional string event_id = 3;
+    optional string event_group_id = 4;
 }
 
 message Overview {
@@ -39,6 +42,8 @@ message TimeseriesRequest {
     optional string to = 2;
     // day | week (по умолчанию day)
     string bucket = 3;
+    optional string event_id = 4;
+    optional string event_group_id = 5;
 }
 
 message SalesTimeseries {
@@ -58,6 +63,8 @@ message TopEventsRequest {
     int32 limit = 3;      // по умолчанию 10
     // revenue | tickets (по умолчанию revenue)
     string sort = 4;
+    optional string event_id = 5;
+    optional string event_group_id = 6;
 }
 
 message TopEvents {
@@ -77,6 +84,7 @@ message OccupancyRequest {
     optional string to = 2;
     optional string event_id = 3;
     int32 limit = 4;      // по умолчанию 20
+    optional string event_group_id = 5;
 }
 
 message Occupancy {
