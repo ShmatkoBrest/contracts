@@ -154,6 +154,11 @@ export interface UserSubscription {
    * несколько подписок"). Пусто для GENERAL_ADMISSION.
    */
   seats: SeatRef[];
+  /**
+   * 3.16.0: непусто только для кассовой продажи, ещё не привязанной ни к
+   * какому аккаунту (claimed_at не выставлен).
+   */
+  claimCode: string;
 }
 
 export interface CheckSubscriptionAccessRequest {
@@ -319,6 +324,60 @@ export interface GetPlanSeatMapResponse {
   seats: SeasonSeat[];
 }
 
+export interface CreateCashierSubscriptionSaleRequest {
+  cashierId: string;
+  /**
+   * Если известен — продажа сразу атрибутируется этому аккаунту (без кода
+   * привязки). Не собирается текущим кассовым UI — заполняется только при
+   * прямом вызове API.
+   */
+  customerId?: string | undefined;
+  planId: string;
+  /** Пусто для GENERAL_ADMISSION (одна подписка без места). */
+  seats: SeatRef[];
+  /** cash | terminal. */
+  paymentType: string;
+  /**
+   * Непрозрачная ссылка на открытую смену кассира в booking-service —
+   * резолвится и передаётся gateway, subscription-service её не проверяет.
+   */
+  shiftId: string;
+}
+
+export interface CashierSubscriptionSaleItem {
+  subscriptionId: string;
+  /** Пусто, если продажа сразу атрибутирована customer_id (привязывать нечего). */
+  claimCode: string;
+}
+
+export interface CreateCashierSubscriptionSaleResponse {
+  items: CashierSubscriptionSaleItem[];
+  /** Сумма продажи целиком (за все места). */
+  amount: number;
+}
+
+export interface ClaimSubscriptionRequest {
+  userId: string;
+  code: string;
+}
+
+export interface ListCashierSubscriptionSalesRequest {
+  shiftId: string;
+}
+
+export interface CashierSubscriptionSaleRow {
+  subscriptionId: string;
+  planId: string;
+  planTitle: string;
+  amount: number;
+  paymentType: string;
+  soldAt: Timestamp | undefined;
+}
+
+export interface ListCashierSubscriptionSalesResponse {
+  rows: CashierSubscriptionSaleRow[];
+}
+
 export const SUBSCRIPTION_V1_PACKAGE_NAME = "subscription.v1";
 
 export interface SubscriptionServiceClient {
@@ -387,6 +446,21 @@ export interface SubscriptionServiceClient {
    */
 
   getPlanSeatMap(request: GetPlanSeatMapRequest): Observable<GetPlanSeatMapResponse>;
+
+  /**
+   * 3.16.0: продажа абонемента кассиром (наличные/терминал, без шлюза) + привязка
+   * офлайн-купленного абонемента в личном кабинете по коду.
+   */
+
+  createCashierSubscriptionSale(
+    request: CreateCashierSubscriptionSaleRequest,
+  ): Observable<CreateCashierSubscriptionSaleResponse>;
+
+  claimSubscription(request: ClaimSubscriptionRequest): Observable<UserSubscription>;
+
+  listCashierSubscriptionSales(
+    request: ListCashierSubscriptionSalesRequest,
+  ): Observable<ListCashierSubscriptionSalesResponse>;
 }
 
 export interface SubscriptionServiceController {
@@ -503,6 +577,29 @@ export interface SubscriptionServiceController {
   getPlanSeatMap(
     request: GetPlanSeatMapRequest,
   ): Promise<GetPlanSeatMapResponse> | Observable<GetPlanSeatMapResponse> | GetPlanSeatMapResponse;
+
+  /**
+   * 3.16.0: продажа абонемента кассиром (наличные/терминал, без шлюза) + привязка
+   * офлайн-купленного абонемента в личном кабинете по коду.
+   */
+
+  createCashierSubscriptionSale(
+    request: CreateCashierSubscriptionSaleRequest,
+  ):
+    | Promise<CreateCashierSubscriptionSaleResponse>
+    | Observable<CreateCashierSubscriptionSaleResponse>
+    | CreateCashierSubscriptionSaleResponse;
+
+  claimSubscription(
+    request: ClaimSubscriptionRequest,
+  ): Promise<UserSubscription> | Observable<UserSubscription> | UserSubscription;
+
+  listCashierSubscriptionSales(
+    request: ListCashierSubscriptionSalesRequest,
+  ):
+    | Promise<ListCashierSubscriptionSalesResponse>
+    | Observable<ListCashierSubscriptionSalesResponse>
+    | ListCashierSubscriptionSalesResponse;
 }
 
 export function SubscriptionServiceControllerMethods() {
@@ -530,6 +627,9 @@ export function SubscriptionServiceControllerMethods() {
       "getSeasonSeatMap",
       "releaseSeasonSeat",
       "getPlanSeatMap",
+      "createCashierSubscriptionSale",
+      "claimSubscription",
+      "listCashierSubscriptionSales",
     ];
     for (const method of grpcMethods) {
       const descriptor: any = Reflect.getOwnPropertyDescriptor(constructor.prototype, method);

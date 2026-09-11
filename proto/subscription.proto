@@ -40,6 +40,12 @@ service SubscriptionService {
     // 3.15.0: занятость мест плана вне кампании продления (для отображения при
     // прямой покупке и для защиты от повторной продажи одного места).
     rpc GetPlanSeatMap (GetPlanSeatMapRequest) returns (GetPlanSeatMapResponse);
+
+    // 3.16.0: продажа абонемента кассиром (наличные/терминал, без шлюза) + привязка
+    // офлайн-купленного абонемента в личном кабинете по коду.
+    rpc CreateCashierSubscriptionSale (CreateCashierSubscriptionSaleRequest) returns (CreateCashierSubscriptionSaleResponse);
+    rpc ClaimSubscription (ClaimSubscriptionRequest) returns (UserSubscription);
+    rpc ListCashierSubscriptionSales (ListCashierSubscriptionSalesRequest) returns (ListCashierSubscriptionSalesResponse);
 }
 
 // ===== SubscriptionPlan =====
@@ -159,6 +165,9 @@ message UserSubscription {
     // 3.15.0: закреплённые места (обычно одно — см. решение "несколько мест =
     // несколько подписок"). Пусто для GENERAL_ADMISSION.
     repeated SeatRef seats = 7;
+    // 3.16.0: непусто только для кассовой продажи, ещё не привязанной ни к
+    // какому аккаунту (claimed_at не выставлен).
+    string claim_code = 8;
 }
 
 // ===== Access =====
@@ -336,4 +345,56 @@ message GetPlanSeatMapRequest {
 message GetPlanSeatMapResponse {
     // Только занятые места (status всегда "TAKEN"); остальные — свободны.
     repeated SeasonSeat seats = 1;
+}
+
+// ===== 3.16.0: касса + привязка офлайн-покупки =====
+
+message CreateCashierSubscriptionSaleRequest {
+    string cashier_id = 1;
+    // Если известен — продажа сразу атрибутируется этому аккаунту (без кода
+    // привязки). Не собирается текущим кассовым UI — заполняется только при
+    // прямом вызове API.
+    optional string customer_id = 2;
+    string plan_id = 3;
+    // Пусто для GENERAL_ADMISSION (одна подписка без места).
+    repeated SeatRef seats = 4;
+    // cash | terminal.
+    string payment_type = 5;
+    // Непрозрачная ссылка на открытую смену кассира в booking-service —
+    // резолвится и передаётся gateway, subscription-service её не проверяет.
+    string shift_id = 6;
+}
+
+message CashierSubscriptionSaleItem {
+    string subscription_id = 1;
+    // Пусто, если продажа сразу атрибутирована customer_id (привязывать нечего).
+    string claim_code = 2;
+}
+
+message CreateCashierSubscriptionSaleResponse {
+    repeated CashierSubscriptionSaleItem items = 1;
+    // Сумма продажи целиком (за все места).
+    int32 amount = 2;
+}
+
+message ClaimSubscriptionRequest {
+    string user_id = 1;
+    string code = 2;
+}
+
+message ListCashierSubscriptionSalesRequest {
+    string shift_id = 1;
+}
+
+message CashierSubscriptionSaleRow {
+    string subscription_id = 1;
+    string plan_id = 2;
+    string plan_title = 3;
+    int32 amount = 4;
+    string payment_type = 5;
+    google.protobuf.Timestamp sold_at = 6;
+}
+
+message ListCashierSubscriptionSalesResponse {
+    repeated CashierSubscriptionSaleRow rows = 1;
 }
