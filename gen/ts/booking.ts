@@ -132,6 +132,13 @@ export interface CreateReservationResponse {
 
 export interface SeatInput {
   seatId: string;
+  /**
+   * 3.18.0: категория (аудитория) конкретного места — например, один билет
+   * детский, другой полный, в одной кассовой продаже. Читается только
+   * CreateCashierSale; CreateReservation (online) её не передаёт — там вся
+   * бронь одной категорией, как и раньше (см. top-level audience_code).
+   */
+  audienceCode?: string | undefined;
 }
 
 export interface ConfirmBookingRequest {

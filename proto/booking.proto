@@ -171,6 +171,11 @@ message CreateReservationResponse {
 
 message SeatInput {
     string seat_id = 1;
+    // 3.18.0: категория (аудитория) конкретного места — например, один билет
+    // детский, другой полный, в одной кассовой продаже. Читается только
+    // CreateCashierSale; CreateReservation (online) её не передаёт — там вся
+    // бронь одной категорией, как и раньше (см. top-level audience_code).
+    optional string audience_code = 2;
 }
 
 message ConfirmBookingRequest {
