@@ -289,6 +289,11 @@ message FinalizeHoldRequest {
 message FinalizeHoldResponse {
     string order_id = 1;
     int32 amount = 2;
+    // 3.30.0: организатор события сеанса — payment-service использует его,
+    // чтобы провести оплату через реквизиты ИМЕННО этого организатора
+    // (деньги напрямую ему), а не через реквизиты платформы по умолчанию.
+    // Пусто — у события нет организатора либо он не задан.
+    string organizer_id = 3;
 }
 
 message SendTicketsEmailRequest {

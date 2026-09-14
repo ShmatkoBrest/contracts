@@ -27,6 +27,11 @@ export interface CreateOrganizerRequest {
   title: string;
   description: string;
   image: string;
+  /**
+   * 3.28.0: свой домен/поддомен (например "club.usteam.by" или
+   * "tickets.club.by") — пусто, если у организатора нет отдельного сайта.
+   */
+  domain: string;
 }
 
 export interface CreateOrganizerResponse {
@@ -38,6 +43,7 @@ export interface UpdateOrganizerRequest {
   title: string;
   description: string;
   image: string;
+  domain: string;
 }
 
 export interface UpdateOrganizerResponse {
@@ -52,11 +58,56 @@ export interface DeleteOrganizerResponse {
   ok: boolean;
 }
 
+export interface GetOrganizerByDomainRequest {
+  /** Хост из заголовка запроса, без порта и протокола (например "club.usteam.by"). */
+  domain: string;
+}
+
+export interface GetOrganizerByDomainResponse {
+  found: boolean;
+  organizer: Organizer | undefined;
+}
+
+export interface SetOrganizerLicenseRequest {
+  organizerId: string;
+  /** ACTIVE | TRIAL | REVOKED */
+  status: string;
+  /** ISO-строка, пусто = бессрочно. */
+  expiresAt: string;
+  /**
+   * true — выпустить новый ключ взамен старого (или первый, если ещё нет).
+   * false — поменять только status/expires_at, ключ не трогать.
+   */
+  regenerateKey: boolean;
+}
+
+export interface SetOrganizerLicenseResponse {
+  organizer: Organizer | undefined;
+}
+
+export interface ValidateLicenseKeyRequest {
+  key: string;
+}
+
+export interface ValidateLicenseKeyResponse {
+  /** false — ключа нет, статус REVOKED или истёк срок. */
+  valid: boolean;
+  organizer: Organizer | undefined;
+}
+
 export interface Organizer {
   id: string;
   title: string;
   description: string;
   image: string;
+  domain: string;
+  /**
+   * 3.29.0: поля лицензии — ТОЛЬКО для ADMIN-контекста на gateway-service,
+   * публичные GetOrganizer/ListOrganizers их обязаны вырезать перед отдачей.
+   */
+  licenseKey: string;
+  licenseStatus: string;
+  licenseExpiresAt: string;
 }
 
 export const ORGANIZER_V1_PACKAGE_NAME = "organizer.v1";
@@ -83,6 +134,28 @@ export interface OrganizerServiceClient {
   /** удаление организатора */
 
   deleteOrganizer(request: DeleteOrganizerRequest): Observable<DeleteOrganizerResponse>;
+
+  /**
+   * 3.28.0: организатор = тенант "коробочной" платформы — резолв входящего
+   * домена/поддомена (Host-заголовок) в организатора на gateway-service, на
+   * каждый запрос. `found=false` — обычный публичный домен без своего
+   * организатора (общий сайт всех событий), не ошибка.
+   */
+
+  getOrganizerByDomain(request: GetOrganizerByDomainRequest): Observable<GetOrganizerByDomainResponse>;
+
+  /**
+   * 3.29.0: лицензионный ключ — для развёртываний фронтенда организатора
+   * ВНЕ нашей инфраструктуры (свой хостинг), которые всё равно ходят за
+   * общим каталогом/авторизацией в этот же gateway-service (заголовком
+   * Host там резолвить нечего — домен терминируется не у нас). ADMIN.
+   */
+
+  setOrganizerLicense(request: SetOrganizerLicenseRequest): Observable<SetOrganizerLicenseResponse>;
+
+  /** Резолв X-License-Key на каждый внешний запрос — аналог GetOrganizerByDomain. */
+
+  validateLicenseKey(request: ValidateLicenseKeyRequest): Observable<ValidateLicenseKeyResponse>;
 }
 
 /** Сервис для работы с организаторами событий */
@@ -117,6 +190,34 @@ export interface OrganizerServiceController {
   deleteOrganizer(
     request: DeleteOrganizerRequest,
   ): Promise<DeleteOrganizerResponse> | Observable<DeleteOrganizerResponse> | DeleteOrganizerResponse;
+
+  /**
+   * 3.28.0: организатор = тенант "коробочной" платформы — резолв входящего
+   * домена/поддомена (Host-заголовок) в организатора на gateway-service, на
+   * каждый запрос. `found=false` — обычный публичный домен без своего
+   * организатора (общий сайт всех событий), не ошибка.
+   */
+
+  getOrganizerByDomain(
+    request: GetOrganizerByDomainRequest,
+  ): Promise<GetOrganizerByDomainResponse> | Observable<GetOrganizerByDomainResponse> | GetOrganizerByDomainResponse;
+
+  /**
+   * 3.29.0: лицензионный ключ — для развёртываний фронтенда организатора
+   * ВНЕ нашей инфраструктуры (свой хостинг), которые всё равно ходят за
+   * общим каталогом/авторизацией в этот же gateway-service (заголовком
+   * Host там резолвить нечего — домен терминируется не у нас). ADMIN.
+   */
+
+  setOrganizerLicense(
+    request: SetOrganizerLicenseRequest,
+  ): Promise<SetOrganizerLicenseResponse> | Observable<SetOrganizerLicenseResponse> | SetOrganizerLicenseResponse;
+
+  /** Резолв X-License-Key на каждый внешний запрос — аналог GetOrganizerByDomain. */
+
+  validateLicenseKey(
+    request: ValidateLicenseKeyRequest,
+  ): Promise<ValidateLicenseKeyResponse> | Observable<ValidateLicenseKeyResponse> | ValidateLicenseKeyResponse;
 }
 
 export function OrganizerServiceControllerMethods() {
@@ -127,6 +228,9 @@ export function OrganizerServiceControllerMethods() {
       "createOrganizer",
       "updateOrganizer",
       "deleteOrganizer",
+      "getOrganizerByDomain",
+      "setOrganizerLicense",
+      "validateLicenseKey",
     ];
     for (const method of grpcMethods) {
       const descriptor: any = Reflect.getOwnPropertyDescriptor(constructor.prototype, method);

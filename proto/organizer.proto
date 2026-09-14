@@ -16,6 +16,18 @@ service OrganizerService {
     rpc UpdateOrganizer (UpdateOrganizerRequest) returns (UpdateOrganizerResponse);
     // удаление организатора
     rpc DeleteOrganizer (DeleteOrganizerRequest) returns (DeleteOrganizerResponse);
+    // 3.28.0: организатор = тенант "коробочной" платформы — резолв входящего
+    // домена/поддомена (Host-заголовок) в организатора на gateway-service, на
+    // каждый запрос. `found=false` — обычный публичный домен без своего
+    // организатора (общий сайт всех событий), не ошибка.
+    rpc GetOrganizerByDomain (GetOrganizerByDomainRequest) returns (GetOrganizerByDomainResponse);
+    // 3.29.0: лицензионный ключ — для развёртываний фронтенда организатора
+    // ВНЕ нашей инфраструктуры (свой хостинг), которые всё равно ходят за
+    // общим каталогом/авторизацией в этот же gateway-service (заголовком
+    // Host там резолвить нечего — домен терминируется не у нас). ADMIN.
+    rpc SetOrganizerLicense (SetOrganizerLicenseRequest) returns (SetOrganizerLicenseResponse);
+    // Резолв X-License-Key на каждый внешний запрос — аналог GetOrganizerByDomain.
+    rpc ValidateLicenseKey (ValidateLicenseKeyRequest) returns (ValidateLicenseKeyResponse);
 }
 
 message ListOrganizersResponse {
@@ -34,6 +46,9 @@ message CreateOrganizerRequest {
     string title       = 1;
     string description = 2;
     string image       = 3;
+    // 3.28.0: свой домен/поддомен (например "club.usteam.by" или
+    // "tickets.club.by") — пусто, если у организатора нет отдельного сайта.
+    string domain      = 4;
 }
 
 message CreateOrganizerResponse {
@@ -45,6 +60,7 @@ message UpdateOrganizerRequest {
     string title       = 2;
     string description = 3;
     string image       = 4;
+    string domain       = 5;
 }
 
 message UpdateOrganizerResponse {
@@ -59,9 +75,50 @@ message DeleteOrganizerResponse {
     bool ok = 1;
 }
 
+message GetOrganizerByDomainRequest {
+    // Хост из заголовка запроса, без порта и протокола (например "club.usteam.by").
+    string domain = 1;
+}
+
+message GetOrganizerByDomainResponse {
+    bool found = 1;
+    Organizer organizer = 2;
+}
+
+message SetOrganizerLicenseRequest {
+    string organizer_id = 1;
+    // ACTIVE | TRIAL | REVOKED
+    string status = 2;
+    // ISO-строка, пусто = бессрочно.
+    string expires_at = 3;
+    // true — выпустить новый ключ взамен старого (или первый, если ещё нет).
+    // false — поменять только status/expires_at, ключ не трогать.
+    bool regenerate_key = 4;
+}
+
+message SetOrganizerLicenseResponse {
+    Organizer organizer = 1;
+}
+
+message ValidateLicenseKeyRequest {
+    string key = 1;
+}
+
+message ValidateLicenseKeyResponse {
+    // false — ключа нет, статус REVOKED или истёк срок.
+    bool valid = 1;
+    Organizer organizer = 2;
+}
+
 message Organizer {
     string id          = 1;
     string title       = 2;
     string description = 3;
     string image       = 4;
+    string domain       = 5;
+    // 3.29.0: поля лицензии — ТОЛЬКО для ADMIN-контекста на gateway-service,
+    // публичные GetOrganizer/ListOrganizers их обязаны вырезать перед отдачей.
+    string license_key = 6;
+    string license_status = 7;
+    string license_expires_at = 8;
 }

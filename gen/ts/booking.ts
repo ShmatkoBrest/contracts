@@ -243,6 +243,13 @@ export interface FinalizeHoldRequest {
 export interface FinalizeHoldResponse {
   orderId: string;
   amount: number;
+  /**
+   * 3.30.0: организатор события сеанса — payment-service использует его,
+   * чтобы провести оплату через реквизиты ИМЕННО этого организатора
+   * (деньги напрямую ему), а не через реквизиты платформы по умолчанию.
+   * Пусто — у события нет организатора либо он не задан.
+   */
+  organizerId: string;
 }
 
 export interface SendTicketsEmailRequest {

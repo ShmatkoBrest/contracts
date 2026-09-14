@@ -31,6 +31,14 @@ service PaymentService {
   // payment-service отвечает только за инициацию платежа у провайдера.
   rpc CreateGenericPayment (CreateGenericPaymentRequest) returns (CreateGenericPaymentResponse);
 
+  // 3.30.0: реквизиты мерчанта организатора ("коробочная" платформа — оплата
+  // за билеты события этого организатора идёт через ЕГО Webpay-аккаунт, не
+  // через платформенный по умолчанию). ADMIN. secret_key/webhook_secret —
+  // секреты, отдаются вызывающей стороне как есть (gateway-service обязан
+  // не пропускать их дальше публичных ответов — см. GATEWAY-SERVICE.md).
+  rpc SetMerchantAccount (SetMerchantAccountRequest) returns (SetMerchantAccountResponse);
+  rpc GetMerchantAccount (GetMerchantAccountRequest) returns (GetMerchantAccountResponse);
+
 }
 message CreatePaymentRequest {
   string user_id = 1;
@@ -157,4 +165,35 @@ message CreateGenericPaymentRequest {
 message CreateGenericPaymentResponse {
   string payment_id = 1;
   string url = 2;
+}
+
+message SetMerchantAccountRequest {
+    string organizer_id = 1;
+    string api_url = 2;
+    string secret_key = 3;
+    string store_id = 4;
+    // Пусто — подпись вебхука проверяется тем же secret_key (как и у
+    // платформенного дефолта); задан — отдельный секрет только для подписи.
+    string webhook_secret = 5;
+    // true — удалить реквизиты организатора (вернуться к платформенному
+    // дефолту по умолчанию для его платежей).
+    bool delete = 6;
+}
+
+message SetMerchantAccountResponse {
+    bool ok = 1;
+}
+
+message GetMerchantAccountRequest {
+    string organizer_id = 1;
+}
+
+message GetMerchantAccountResponse {
+    // false — своих реквизитов нет, платежи этого организатора идут через
+    // платформенный дефолт.
+    bool found = 1;
+    string api_url = 2;
+    string secret_key = 3;
+    string store_id = 4;
+    string webhook_secret = 5;
 }

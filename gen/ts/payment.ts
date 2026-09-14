@@ -153,6 +153,43 @@ export interface CreateGenericPaymentResponse {
   url: string;
 }
 
+export interface SetMerchantAccountRequest {
+  organizerId: string;
+  apiUrl: string;
+  secretKey: string;
+  storeId: string;
+  /**
+   * Пусто — подпись вебхука проверяется тем же secret_key (как и у
+   * платформенного дефолта); задан — отдельный секрет только для подписи.
+   */
+  webhookSecret: string;
+  /**
+   * true — удалить реквизиты организатора (вернуться к платформенному
+   * дефолту по умолчанию для его платежей).
+   */
+  delete: boolean;
+}
+
+export interface SetMerchantAccountResponse {
+  ok: boolean;
+}
+
+export interface GetMerchantAccountRequest {
+  organizerId: string;
+}
+
+export interface GetMerchantAccountResponse {
+  /**
+   * false — своих реквизитов нет, платежи этого организатора идут через
+   * платформенный дефолт.
+   */
+  found: boolean;
+  apiUrl: string;
+  secretKey: string;
+  storeId: string;
+  webhookSecret: string;
+}
+
 export const PAYMENT_V1_PACKAGE_NAME = "payment.v1";
 
 export interface PaymentServiceClient {
@@ -199,6 +236,18 @@ export interface PaymentServiceClient {
    */
 
   createGenericPayment(request: CreateGenericPaymentRequest): Observable<CreateGenericPaymentResponse>;
+
+  /**
+   * 3.30.0: реквизиты мерчанта организатора ("коробочная" платформа — оплата
+   * за билеты события этого организатора идёт через ЕГО Webpay-аккаунт, не
+   * через платформенный по умолчанию). ADMIN. secret_key/webhook_secret —
+   * секреты, отдаются вызывающей стороне как есть (gateway-service обязан
+   * не пропускать их дальше публичных ответов — см. GATEWAY-SERVICE.md).
+   */
+
+  setMerchantAccount(request: SetMerchantAccountRequest): Observable<SetMerchantAccountResponse>;
+
+  getMerchantAccount(request: GetMerchantAccountRequest): Observable<GetMerchantAccountResponse>;
 }
 
 export interface PaymentServiceController {
@@ -261,6 +310,22 @@ export interface PaymentServiceController {
   createGenericPayment(
     request: CreateGenericPaymentRequest,
   ): Promise<CreateGenericPaymentResponse> | Observable<CreateGenericPaymentResponse> | CreateGenericPaymentResponse;
+
+  /**
+   * 3.30.0: реквизиты мерчанта организатора ("коробочная" платформа — оплата
+   * за билеты события этого организатора идёт через ЕГО Webpay-аккаунт, не
+   * через платформенный по умолчанию). ADMIN. secret_key/webhook_secret —
+   * секреты, отдаются вызывающей стороне как есть (gateway-service обязан
+   * не пропускать их дальше публичных ответов — см. GATEWAY-SERVICE.md).
+   */
+
+  setMerchantAccount(
+    request: SetMerchantAccountRequest,
+  ): Promise<SetMerchantAccountResponse> | Observable<SetMerchantAccountResponse> | SetMerchantAccountResponse;
+
+  getMerchantAccount(
+    request: GetMerchantAccountRequest,
+  ): Promise<GetMerchantAccountResponse> | Observable<GetMerchantAccountResponse> | GetMerchantAccountResponse;
 }
 
 export function PaymentServiceControllerMethods() {
@@ -274,6 +339,8 @@ export function PaymentServiceControllerMethods() {
       "verifyPaymentMethod",
       "deletePaymentMethod",
       "createGenericPayment",
+      "setMerchantAccount",
+      "getMerchantAccount",
     ];
     for (const method of grpcMethods) {
       const descriptor: any = Reflect.getOwnPropertyDescriptor(constructor.prototype, method);

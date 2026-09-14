@@ -8,12 +8,30 @@ package content.v1;
 // (`shared/config/site-content.ts`), сервис ничего не знает про их смысл.
 // Живёт в event-service (уже владеет общедоступным контентом каталога,
 // заводить отдельный сервис ради одной таблицы избыточно).
+//
+// 3.28.0: "коробочная" платформа — organizer_id как измерение у ListContent/
+// SetContent/GetPageLayout/SetPageLayout. Пусто = платформенный дефолт
+// (общий сайт всех событий); задан = свой бренд организатора (домен/
+// поддомен резолвится в organizer_id на gateway-service, см.
+// organizer.proto GetOrganizerByDomain). ListContent/GetPageLayout с
+// заданным organizer_id возвращают УЖЕ СМЕРЖЕННЫЙ результат (переопределения
+// организатора поверх платформенных, как у per-event/per-organizer
+// шаблонов) — вызывающая сторона не должна мержить сама.
 service ContentService {
     // Публично, без авторизации — читает вся публичная часть сайта.
     rpc ListContent (ListContentRequest) returns (ListContentResponse);
     // ADMIN. Батч: несколько ключей одной формой. Пустое value — удалить
     // переопределение (вернуться к дефолту на фронте).
     rpc SetContent (SetContentRequest) returns (SetContentResponse);
+
+    // 3.27.0: порядок и видимость секций страницы (`home`/`event`) — гибкая
+    // вёрстка без правки кода. Набор доступных блоков и их дефолтный порядок
+    // знает только фронтенд (`shared/config/page-layout.ts`); сервис хранит
+    // только то, что реально переопределено (как и ContentEntry).
+    rpc GetPageLayout (GetPageLayoutRequest) returns (GetPageLayoutResponse);
+    // ADMIN. Пустой blocks[] — удалить переопределение (вернуться к дефолтной
+    // вёрстке страницы).
+    rpc SetPageLayout (SetPageLayoutRequest) returns (SetPageLayoutResponse);
 }
 
 message ContentEntry {
@@ -21,7 +39,11 @@ message ContentEntry {
     string value = 2;
 }
 
-message ListContentRequest {}
+message ListContentRequest {
+    // 3.28.0: пусто — платформенный дефолт; иначе — бренд организатора
+    // (смержено поверх платформенного).
+    string organizer_id = 1;
+}
 
 message ListContentResponse {
     repeated ContentEntry entries = 1;
@@ -29,8 +51,39 @@ message ListContentResponse {
 
 message SetContentRequest {
     repeated ContentEntry entries = 1;
+    string organizer_id = 2;
 }
 
 message SetContentResponse {
+    bool ok = 1;
+}
+
+message LayoutBlock {
+    // Ключ блока (например "hero"/"popular"/"news") — платформа его не
+    // интерпретирует, просто хранит порядок и видимость.
+    string key = 1;
+    bool visible = 2;
+}
+
+message GetPageLayoutRequest {
+    // "home" | "event" | ... — любой ключ страницы, сервис не валидирует.
+    string page = 1;
+    string organizer_id = 2;
+}
+
+message GetPageLayoutResponse {
+    // Порядок массива — порядок отображения. Пусто — переопределения нет,
+    // фронт использует дефолтную вёрстку страницы.
+    repeated LayoutBlock blocks = 1;
+    bool is_override = 2;
+}
+
+message SetPageLayoutRequest {
+    string page = 1;
+    repeated LayoutBlock blocks = 2;
+    string organizer_id = 3;
+}
+
+message SetPageLayoutResponse {
     bool ok = 1;
 }

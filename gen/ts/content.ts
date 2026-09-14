@@ -16,6 +16,11 @@ export interface ContentEntry {
 }
 
 export interface ListContentRequest {
+  /**
+   * 3.28.0: пусто — платформенный дефолт; иначе — бренд организатора
+   * (смержено поверх платформенного).
+   */
+  organizerId: string;
 }
 
 export interface ListContentResponse {
@@ -24,9 +29,44 @@ export interface ListContentResponse {
 
 export interface SetContentRequest {
   entries: ContentEntry[];
+  organizerId: string;
 }
 
 export interface SetContentResponse {
+  ok: boolean;
+}
+
+export interface LayoutBlock {
+  /**
+   * Ключ блока (например "hero"/"popular"/"news") — платформа его не
+   * интерпретирует, просто хранит порядок и видимость.
+   */
+  key: string;
+  visible: boolean;
+}
+
+export interface GetPageLayoutRequest {
+  /** "home" | "event" | ... — любой ключ страницы, сервис не валидирует. */
+  page: string;
+  organizerId: string;
+}
+
+export interface GetPageLayoutResponse {
+  /**
+   * Порядок массива — порядок отображения. Пусто — переопределения нет,
+   * фронт использует дефолтную вёрстку страницы.
+   */
+  blocks: LayoutBlock[];
+  isOverride: boolean;
+}
+
+export interface SetPageLayoutRequest {
+  page: string;
+  blocks: LayoutBlock[];
+  organizerId: string;
+}
+
+export interface SetPageLayoutResponse {
   ok: boolean;
 }
 
@@ -39,6 +79,15 @@ export const CONTENT_V1_PACKAGE_NAME = "content.v1";
  * (`shared/config/site-content.ts`), сервис ничего не знает про их смысл.
  * Живёт в event-service (уже владеет общедоступным контентом каталога,
  * заводить отдельный сервис ради одной таблицы избыточно).
+ *
+ * 3.28.0: "коробочная" платформа — organizer_id как измерение у ListContent/
+ * SetContent/GetPageLayout/SetPageLayout. Пусто = платформенный дефолт
+ * (общий сайт всех событий); задан = свой бренд организатора (домен/
+ * поддомен резолвится в organizer_id на gateway-service, см.
+ * organizer.proto GetOrganizerByDomain). ListContent/GetPageLayout с
+ * заданным organizer_id возвращают УЖЕ СМЕРЖЕННЫЙ результат (переопределения
+ * организатора поверх платформенных, как у per-event/per-organizer
+ * шаблонов) — вызывающая сторона не должна мержить сама.
  */
 
 export interface ContentServiceClient {
@@ -52,6 +101,22 @@ export interface ContentServiceClient {
    */
 
   setContent(request: SetContentRequest): Observable<SetContentResponse>;
+
+  /**
+   * 3.27.0: порядок и видимость секций страницы (`home`/`event`) — гибкая
+   * вёрстка без правки кода. Набор доступных блоков и их дефолтный порядок
+   * знает только фронтенд (`shared/config/page-layout.ts`); сервис хранит
+   * только то, что реально переопределено (как и ContentEntry).
+   */
+
+  getPageLayout(request: GetPageLayoutRequest): Observable<GetPageLayoutResponse>;
+
+  /**
+   * ADMIN. Пустой blocks[] — удалить переопределение (вернуться к дефолтной
+   * вёрстке страницы).
+   */
+
+  setPageLayout(request: SetPageLayoutRequest): Observable<SetPageLayoutResponse>;
 }
 
 /**
@@ -61,6 +126,15 @@ export interface ContentServiceClient {
  * (`shared/config/site-content.ts`), сервис ничего не знает про их смысл.
  * Живёт в event-service (уже владеет общедоступным контентом каталога,
  * заводить отдельный сервис ради одной таблицы избыточно).
+ *
+ * 3.28.0: "коробочная" платформа — organizer_id как измерение у ListContent/
+ * SetContent/GetPageLayout/SetPageLayout. Пусто = платформенный дефолт
+ * (общий сайт всех событий); задан = свой бренд организатора (домен/
+ * поддомен резолвится в organizer_id на gateway-service, см.
+ * organizer.proto GetOrganizerByDomain). ListContent/GetPageLayout с
+ * заданным organizer_id возвращают УЖЕ СМЕРЖЕННЫЙ результат (переопределения
+ * организатора поверх платформенных, как у per-event/per-organizer
+ * шаблонов) — вызывающая сторона не должна мержить сама.
  */
 
 export interface ContentServiceController {
@@ -78,11 +152,31 @@ export interface ContentServiceController {
   setContent(
     request: SetContentRequest,
   ): Promise<SetContentResponse> | Observable<SetContentResponse> | SetContentResponse;
+
+  /**
+   * 3.27.0: порядок и видимость секций страницы (`home`/`event`) — гибкая
+   * вёрстка без правки кода. Набор доступных блоков и их дефолтный порядок
+   * знает только фронтенд (`shared/config/page-layout.ts`); сервис хранит
+   * только то, что реально переопределено (как и ContentEntry).
+   */
+
+  getPageLayout(
+    request: GetPageLayoutRequest,
+  ): Promise<GetPageLayoutResponse> | Observable<GetPageLayoutResponse> | GetPageLayoutResponse;
+
+  /**
+   * ADMIN. Пустой blocks[] — удалить переопределение (вернуться к дефолтной
+   * вёрстке страницы).
+   */
+
+  setPageLayout(
+    request: SetPageLayoutRequest,
+  ): Promise<SetPageLayoutResponse> | Observable<SetPageLayoutResponse> | SetPageLayoutResponse;
 }
 
 export function ContentServiceControllerMethods() {
   return function (constructor: Function) {
-    const grpcMethods: string[] = ["listContent", "setContent"];
+    const grpcMethods: string[] = ["listContent", "setContent", "getPageLayout", "setPageLayout"];
     for (const method of grpcMethods) {
       const descriptor: any = Reflect.getOwnPropertyDescriptor(constructor.prototype, method);
       GrpcMethod("ContentService", method)(constructor.prototype[method], method, descriptor);
