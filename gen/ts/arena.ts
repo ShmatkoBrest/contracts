@@ -27,6 +27,15 @@ export interface CreateArenaRequest {
   name: string;
   address: string;
   image: string;
+  /** id города (city.v1, FK внутри arena-service). Опционально для обратной совместимости. */
+  cityId?:
+    | string
+    | undefined;
+  /**
+   * S3-ключ схемы зала (подложка конструктора, §12). Отличается от image
+   * (фото площадки для карточек).
+   */
+  planImage?: string | undefined;
 }
 
 export interface CreateArenaResponse {
@@ -38,6 +47,8 @@ export interface UpdateArenaRequest {
   name: string;
   address: string;
   image: string;
+  cityId?: string | undefined;
+  planImage?: string | undefined;
 }
 
 export interface UpdateArenaResponse {
@@ -57,6 +68,12 @@ export interface Arena {
   name: string;
   address: string;
   image: string;
+  cityId?:
+    | string
+    | undefined;
+  /** slug города, денормализовано при чтении (для афиши/фронта без доп. запроса). */
+  citySlug?: string | undefined;
+  planImage?: string | undefined;
 }
 
 export const ARENA_V1_PACKAGE_NAME = "arena.v1";

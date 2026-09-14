@@ -15,10 +15,34 @@ export interface ListEventsRequest {
   category: string;
   random: boolean;
   limit: number;
+  /** Фильтры/пагинация (все опциональные, старое поведение при отсутствии): */
+  q?:
+    | string
+    | undefined;
+  /** город/место (Event.place) */
+  place?: string | undefined;
+  organizerId?: string | undefined;
+  performerId?: string | undefined;
+  eventGroupId?:
+    | string
+    | undefined;
+  /** 1-based; 0 = без пагинации */
+  page: number;
+  pageSize: number;
+  /**
+   * 3.21.0: фильтр по набору id — используется gateway для «дата сеанса»
+   * (event-service не знает о сеансах; gateway резолвит id событий с
+   * сеансом в нужном диапазоне через screening-service и передаёт сюда).
+   * Пусто — не фильтровать; непустой список без совпадений — 0 результатов
+   * (не «фильтр не задан»).
+   */
+  ids: string[];
 }
 
 export interface ListEventsResponse {
   events: Event[];
+  /** Всего по фильтру (для пагинации). 0, если пагинация не запрашивалась. */
+  total: number;
 }
 
 export interface GetEventRequest {
@@ -46,6 +70,11 @@ export interface CreateEventRequest {
   category: string;
   organizerId?: string | undefined;
   performerIds: string[];
+  eventGroupId?:
+    | string
+    | undefined;
+  /** 3.19.0: см. EventDetails.purchase_limit. */
+  purchaseLimit?: number | undefined;
 }
 
 /**
@@ -74,6 +103,15 @@ export interface UpdateEventRequest {
   category?: string | undefined;
   organizerId?: string | undefined;
   performerIds: PerformerIdList | undefined;
+  eventGroupId?:
+    | string
+    | undefined;
+  /**
+   * 3.19.0: см. EventDetails.purchase_limit. Обёртка не нужна — 0
+   * однозначно означало бы «без ограничения» (валидный кейс), а сам факт
+   * presence уже различим через optional.
+   */
+  purchaseLimit?: number | undefined;
 }
 
 export interface DeleteEventRequest {
@@ -106,6 +144,15 @@ export interface EventDetails {
   releaseDate: Timestamp | undefined;
   organizerId?: string | undefined;
   performerIds: string[];
+  eventGroupId?:
+    | string
+    | undefined;
+  /**
+   * 3.19.0: лимит продажи в одни руки — максимум билетов/GA-единиц на ОДИН
+   * заказ (не накопительно за всё время) на сеансах этого события.
+   * Не задан — без ограничения. Проверяет booking-service.
+   */
+  purchaseLimit?: number | undefined;
 }
 
 export const EVENT_V1_PACKAGE_NAME = "event.v1";

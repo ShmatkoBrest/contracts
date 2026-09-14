@@ -18,8 +18,17 @@ export interface GetSeatResponse {
   seat: Seat | undefined;
 }
 
+export interface GetSeatsRequest {
+  ids: string[];
+}
+
+export interface GetSeatsResponse {
+  seats: Seat[];
+}
+
 export interface ListSeatsRequest {
   sectorId: string;
+  /** Пусто → вернуть места без статуса брони (для конструктора зала). */
   screeningId: string;
 }
 
@@ -34,6 +43,9 @@ export interface Seat {
   status: string;
   type: string;
   sectorId: string;
+  /** Координаты на схеме зала (для рендера SeatMap/конструктора). */
+  x?: number | undefined;
+  y?: number | undefined;
 }
 
 export const SEAT_V1_PACKAGE_NAME = "seat.v1";
@@ -42,6 +54,14 @@ export interface SeatServiceClient {
   /** Получение места по id */
 
   getSeat(request: GetSeatRequest): Observable<GetSeatResponse>;
+
+  /**
+   * Пакетное получение мест по списку id (booking-service при бронировании
+   * на несколько мест — вместо N поштучных GetSeat). Статус брони не
+   * вычисляется. Несуществующие id молча пропускаются.
+   */
+
+  getSeats(request: GetSeatsRequest): Observable<GetSeatsResponse>;
 
   /** Получение мест для конкретного сектора */
 
@@ -53,6 +73,14 @@ export interface SeatServiceController {
 
   getSeat(request: GetSeatRequest): Promise<GetSeatResponse> | Observable<GetSeatResponse> | GetSeatResponse;
 
+  /**
+   * Пакетное получение мест по списку id (booking-service при бронировании
+   * на несколько мест — вместо N поштучных GetSeat). Статус брони не
+   * вычисляется. Несуществующие id молча пропускаются.
+   */
+
+  getSeats(request: GetSeatsRequest): Promise<GetSeatsResponse> | Observable<GetSeatsResponse> | GetSeatsResponse;
+
   /** Получение мест для конкретного сектора */
 
   listSeatsBySector(
@@ -62,7 +90,7 @@ export interface SeatServiceController {
 
 export function SeatServiceControllerMethods() {
   return function (constructor: Function) {
-    const grpcMethods: string[] = ["getSeat", "listSeatsBySector"];
+    const grpcMethods: string[] = ["getSeat", "getSeats", "listSeatsBySector"];
     for (const method of grpcMethods) {
       const descriptor: any = Reflect.getOwnPropertyDescriptor(constructor.prototype, method);
       GrpcMethod("SeatService", method)(constructor.prototype[method], method, descriptor);

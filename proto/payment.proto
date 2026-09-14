@@ -40,6 +40,15 @@ message CreatePaymentRequest {
   bool save_payment_method = 5;
   // Списать баллы лояльности на заказ (копейки, loyalty.v1).
   int32 redeem_points = 6;
+  // 3.19.0: GENERAL_ADMISSION-сектора (без карты мест) — количество вместо
+  // конкретных мест. Категория билета онлайн не выбирается (как и для
+  // seats) — вся бронь одной ценой/аудиторией.
+  repeated GaInput ga = 7;
+}
+
+message GaInput {
+  string sector_id = 1;
+  int32 quantity = 2;
 }
 message CreatePaymentResponse {
   string url = 1;

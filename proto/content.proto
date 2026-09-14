@@ -1,0 +1,36 @@
+syntax = "proto3";
+
+package content.v1;
+
+// 3.26.0: редактируемые в админке заголовки блоков публичной части (шапка,
+// футер, заголовки секций страниц). Плоский словарь key -> value; хранится
+// только то, что реально переопределено — дефолты живут на фронте
+// (`shared/config/site-content.ts`), сервис ничего не знает про их смысл.
+// Живёт в event-service (уже владеет общедоступным контентом каталога,
+// заводить отдельный сервис ради одной таблицы избыточно).
+service ContentService {
+    // Публично, без авторизации — читает вся публичная часть сайта.
+    rpc ListContent (ListContentRequest) returns (ListContentResponse);
+    // ADMIN. Батч: несколько ключей одной формой. Пустое value — удалить
+    // переопределение (вернуться к дефолту на фронте).
+    rpc SetContent (SetContentRequest) returns (SetContentResponse);
+}
+
+message ContentEntry {
+    string key = 1;
+    string value = 2;
+}
+
+message ListContentRequest {}
+
+message ListContentResponse {
+    repeated ContentEntry entries = 1;
+}
+
+message SetContentRequest {
+    repeated ContentEntry entries = 1;
+}
+
+message SetContentResponse {
+    bool ok = 1;
+}

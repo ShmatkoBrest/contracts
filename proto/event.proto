@@ -30,6 +30,12 @@ message ListEventsRequest {
     optional string event_group_id = 8;
     int32 page = 9;                        // 1-based; 0 = без пагинации
     int32 page_size = 10;
+    // 3.21.0: фильтр по набору id — используется gateway для «дата сеанса»
+    // (event-service не знает о сеансах; gateway резолвит id событий с
+    // сеансом в нужном диапазоне через screening-service и передаёт сюда).
+    // Пусто — не фильтровать; непустой список без совпадений — 0 результатов
+    // (не «фильтр не задан»).
+    repeated string ids = 11;
 }
 
 message ListEventsResponse {
@@ -63,6 +69,8 @@ message CreateEventRequest {
     optional string organizer_id = 11;
     repeated string performer_ids = 12;
     optional string event_group_id = 13;
+    // 3.19.0: см. EventDetails.purchase_limit.
+    optional int32 purchase_limit = 14;
 }
 
 // Обёртка нужна, чтобы отличить "поле не передано" (performer_ids не тронут
@@ -87,6 +95,10 @@ message UpdateEventRequest {
     optional string organizer_id = 12;
     PerformerIdList performer_ids = 13;
     optional string event_group_id = 14;
+    // 3.19.0: см. EventDetails.purchase_limit. Обёртка не нужна — 0
+    // однозначно означало бы «без ограничения» (валидный кейс), а сам факт
+    // presence уже различим через optional.
+    optional int32 purchase_limit = 15;
 }
 
 message DeleteEventRequest {
@@ -120,4 +132,8 @@ message EventDetails {
     optional string organizer_id = 11;
     repeated string performer_ids = 12;
     optional string event_group_id = 13;
+    // 3.19.0: лимит продажи в одни руки — максимум билетов/GA-единиц на ОДИН
+    // заказ (не накопительно за всё время) на сеансах этого события.
+    // Не задан — без ограничения. Проверяет booking-service.
+    optional int32 purchase_limit = 14;
 }

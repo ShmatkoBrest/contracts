@@ -16,9 +16,42 @@ export interface CreatePaymentRequest {
   seats: SeatInput[];
   paymentMethodId?: string | undefined;
   savePaymentMethod: boolean;
+  /** Списать баллы лояльности на заказ (копейки, loyalty.v1). */
+  redeemPoints: number;
+  /**
+   * 3.19.0: GENERAL_ADMISSION-сектора (без карты мест) — количество вместо
+   * конкретных мест. Категория билета онлайн не выбирается (как и для
+   * seats) — вся бронь одной ценой/аудиторией.
+   */
+  ga: GaInput[];
+}
+
+export interface GaInput {
+  sectorId: string;
+  quantity: number;
 }
 
 export interface CreatePaymentResponse {
+  url: string;
+  /**
+   * id брони/заказа — фронт использует для опроса статуса после возврата
+   * от платёжного провайдера.
+   */
+  bookingId: string;
+}
+
+export interface GetPaymentByBookingRequest {
+  bookingId: string;
+  userId: string;
+}
+
+export interface PaymentStatus {
+  id: string;
+  bookingId: string;
+  amount: number;
+  /** pending | succeeded | canceled | failed */
+  status: string;
+  /** Ссылка на форму оплаты (актуальна, пока status = pending). */
   url: string;
 }
 
@@ -87,12 +120,49 @@ export interface SeatInput {
   seatId: string;
 }
 
+export interface CreateGenericPaymentRequest {
+  userId: string;
+  /**
+   * Сумма в минимальных единицах валюты (копейки/центы) — согласовано
+   * с платформенным соглашением (booking-service, payment-service сами
+   * хранят суммы как Int).
+   */
+  amount: number;
+  description: string;
+  returnUrl: string;
+  /**
+   * Вызывающая сторона указывает СВОЙ callback_url — платёжный провайдер
+   * шлёт вебхук туда напрямую, а не в payment-service.
+   */
+  callbackUrl: string;
+  /**
+   * Произвольные метаданные, которые платёжная система вернёт в вебхуке
+   * без изменений (например, subscription_id, user_subscription_id) —
+   * позволяет вызывающей стороне идентифицировать платёж на своей стороне.
+   */
+  metadata: { [key: string]: string };
+}
+
+export interface CreateGenericPaymentRequest_MetadataEntry {
+  key: string;
+  value: string;
+}
+
+export interface CreateGenericPaymentResponse {
+  paymentId: string;
+  url: string;
+}
+
 export const PAYMENT_V1_PACKAGE_NAME = "payment.v1";
 
 export interface PaymentServiceClient {
   /** Создание платежа */
 
   createPayment(request: CreatePaymentRequest): Observable<CreatePaymentResponse>;
+
+  /** Статус платежа по брони (для экрана /checkout/result — фронт поллит) */
+
+  getPaymentByBooking(request: GetPaymentByBookingRequest): Observable<PaymentStatus>;
 
   /** Обработка  (начисление брони) от платежной системы */
 
@@ -113,6 +183,22 @@ export interface PaymentServiceClient {
   /**  */
 
   deletePaymentMethod(request: DeletePaymentMethodRequest): Observable<DeletePaymentMethodResponse>;
+
+  /**
+   * Создание платежа общего назначения — без привязки к брони через
+   * booking-service (в отличие от CreatePayment). Используется сервисами,
+   * которым нужно просто списать сумму и получить ссылку на оплату —
+   * например, subscription-service при покупке абонемента.
+   *
+   * callback_url в запросе указывает вызывающая сторона — платёжный
+   * провайдер шлёт вебхук напрямую туда (не в payment-service), поэтому
+   * payment-service не обязан знать об исходе платежа и не должен
+   * звонить обратно в вызывающий сервис — это сознательное архитектурное
+   * решение, чтобы не заводить новый порт вроде SubscriptionPort здесь.
+   * payment-service отвечает только за инициацию платежа у провайдера.
+   */
+
+  createGenericPayment(request: CreateGenericPaymentRequest): Observable<CreateGenericPaymentResponse>;
 }
 
 export interface PaymentServiceController {
@@ -121,6 +207,12 @@ export interface PaymentServiceController {
   createPayment(
     request: CreatePaymentRequest,
   ): Promise<CreatePaymentResponse> | Observable<CreatePaymentResponse> | CreatePaymentResponse;
+
+  /** Статус платежа по брони (для экрана /checkout/result — фронт поллит) */
+
+  getPaymentByBooking(
+    request: GetPaymentByBookingRequest,
+  ): Promise<PaymentStatus> | Observable<PaymentStatus> | PaymentStatus;
 
   /** Обработка  (начисление брони) от платежной системы */
 
@@ -151,17 +243,37 @@ export interface PaymentServiceController {
   deletePaymentMethod(
     request: DeletePaymentMethodRequest,
   ): Promise<DeletePaymentMethodResponse> | Observable<DeletePaymentMethodResponse> | DeletePaymentMethodResponse;
+
+  /**
+   * Создание платежа общего назначения — без привязки к брони через
+   * booking-service (в отличие от CreatePayment). Используется сервисами,
+   * которым нужно просто списать сумму и получить ссылку на оплату —
+   * например, subscription-service при покупке абонемента.
+   *
+   * callback_url в запросе указывает вызывающая сторона — платёжный
+   * провайдер шлёт вебхук напрямую туда (не в payment-service), поэтому
+   * payment-service не обязан знать об исходе платежа и не должен
+   * звонить обратно в вызывающий сервис — это сознательное архитектурное
+   * решение, чтобы не заводить новый порт вроде SubscriptionPort здесь.
+   * payment-service отвечает только за инициацию платежа у провайдера.
+   */
+
+  createGenericPayment(
+    request: CreateGenericPaymentRequest,
+  ): Promise<CreateGenericPaymentResponse> | Observable<CreateGenericPaymentResponse> | CreateGenericPaymentResponse;
 }
 
 export function PaymentServiceControllerMethods() {
   return function (constructor: Function) {
     const grpcMethods: string[] = [
       "createPayment",
+      "getPaymentByBooking",
       "processPaymentEvent",
       "getUserPaymentMethods",
       "createPaymentMethod",
       "verifyPaymentMethod",
       "deletePaymentMethod",
+      "createGenericPayment",
     ];
     for (const method of grpcMethods) {
       const descriptor: any = Reflect.getOwnPropertyDescriptor(constructor.prototype, method);

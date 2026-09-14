@@ -112,6 +112,12 @@ export interface PurchaseSubscriptionRequest {
     | undefined;
   /** 3.15.0: несколько мест — несколько отдельных подписок одним платежом. */
   seats: SeatRef[];
+  /**
+   * 3.19.0: для GENERAL_ADMISSION — сколько подписок купить одним платежом
+   * (по аналогии с несколькими seats у FIXED_SEAT). Не задано/0 → 1.
+   * Игнорируется для FIXED_SEAT (там количество = len(seats)).
+   */
+  gaQuantity?: number | undefined;
 }
 
 export interface PurchaseSubscriptionResponse {
@@ -362,7 +368,22 @@ export interface CreateCashierSubscriptionSaleRequest {
   /**
    * 3.17.0: скидка для GENERAL_ADMISSION-плана (там нет seats, поэтому
    * discount_pct самого SeatRef неприменим). Игнорируется для FIXED_SEAT.
+   * 3.19.0: устарело в пользу `ga` (несколько категорий за одну продажу) —
+   * читается только как фолбэк (одна группа, quantity=1), если `ga` пуст.
    */
+  discountPct?:
+    | number
+    | undefined;
+  /**
+   * 3.19.0: для GENERAL_ADMISSION — количество абонементов и разбивка по
+   * категориям в одной продаже (например, 2 полных + 1 детский), вместо
+   * одного discount_pct на одну подписку. Игнорируется для FIXED_SEAT.
+   */
+  ga: SubscriptionGaInput[];
+}
+
+export interface SubscriptionGaInput {
+  quantity: number;
   discountPct?: number | undefined;
 }
 
@@ -387,6 +408,33 @@ export interface CreateCashierSubscriptionSaleResponse {
 export interface ClaimSubscriptionRequest {
   userId: string;
   code: string;
+}
+
+export interface IssueComplimentarySubscriptionRequest {
+  planId: string;
+  /**
+   * Места для FIXED_SEAT-плана (по одному абонементу на место); пусто
+   * для GENERAL_ADMISSION.
+   */
+  seats: SeatRef[];
+  issuedBy: string;
+  note?:
+    | string
+    | undefined;
+  /**
+   * 3.23.0: для GENERAL_ADMISSION — сколько выдать одним вызовом
+   * (аналог quantity у пригласительных GA-билетов). Не задано — 1.
+   * Игнорируется для FIXED_SEAT (там количество = len(seats)).
+   */
+  gaQuantity?: number | undefined;
+}
+
+export interface IssueComplimentarySubscriptionResponse {
+  /**
+   * Переиспользует существующее сообщение кассовой продажи — та же форма
+   * (subscription_id, claim_code, amount — здесь всегда 0).
+   */
+  items: CashierSubscriptionSaleItem[];
 }
 
 export interface ListCashierSubscriptionSalesRequest {
@@ -489,6 +537,16 @@ export interface SubscriptionServiceClient {
   listCashierSubscriptionSales(
     request: ListCashierSubscriptionSalesRequest,
   ): Observable<ListCashierSubscriptionSalesResponse>;
+
+  /**
+   * 3.23.0: пригласительные абонементы (0 ₽, без оплаты) — тот же раздел
+   * админки, что и пригласительные билеты. Как и кассовая продажа —
+   * выдаёт код привязки (получатель не известен системе заранее).
+   */
+
+  issueComplimentarySubscription(
+    request: IssueComplimentarySubscriptionRequest,
+  ): Observable<IssueComplimentarySubscriptionResponse>;
 }
 
 export interface SubscriptionServiceController {
@@ -628,6 +686,19 @@ export interface SubscriptionServiceController {
     | Promise<ListCashierSubscriptionSalesResponse>
     | Observable<ListCashierSubscriptionSalesResponse>
     | ListCashierSubscriptionSalesResponse;
+
+  /**
+   * 3.23.0: пригласительные абонементы (0 ₽, без оплаты) — тот же раздел
+   * админки, что и пригласительные билеты. Как и кассовая продажа —
+   * выдаёт код привязки (получатель не известен системе заранее).
+   */
+
+  issueComplimentarySubscription(
+    request: IssueComplimentarySubscriptionRequest,
+  ):
+    | Promise<IssueComplimentarySubscriptionResponse>
+    | Observable<IssueComplimentarySubscriptionResponse>
+    | IssueComplimentarySubscriptionResponse;
 }
 
 export function SubscriptionServiceControllerMethods() {
@@ -658,6 +729,7 @@ export function SubscriptionServiceControllerMethods() {
       "createCashierSubscriptionSale",
       "claimSubscription",
       "listCashierSubscriptionSales",
+      "issueComplimentarySubscription",
     ];
     for (const method of grpcMethods) {
       const descriptor: any = Reflect.getOwnPropertyDescriptor(constructor.prototype, method);

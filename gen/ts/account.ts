@@ -7,6 +7,7 @@
 /* eslint-disable */
 import { GrpcMethod, GrpcStreamMethod } from "@nestjs/microservices";
 import { Observable } from "rxjs";
+import { Empty } from "./google/protobuf/empty";
 
 export const protobufPackage = "account.v1";
 
@@ -20,7 +21,45 @@ export interface GetAccountResponse {
   email: string;
   isPhoneVerified: boolean;
   isEmailVerified: boolean;
+  /**
+   * Ключ роли из справочной таблицы `roles` в auth-service
+   * (USER | ADMIN | EDITOR | CASHIER). Раньше было enum Role — заменено на
+   * string, т.к. роли вынесены в таблицу. Канонический список ключей —
+   * `ROLE_KEYS` в @usteam/common.
+   */
   role: string;
+}
+
+export interface ListAccountsRequest {
+  /** Поиск по подстроке в phone/email */
+  query?:
+    | string
+    | undefined;
+  /** Фильтр по ключу роли */
+  role?: string | undefined;
+  page: number;
+  pageSize: number;
+}
+
+export interface ListAccountsResponse {
+  accounts: GetAccountResponse[];
+  total: number;
+}
+
+export interface SetAccountRoleRequest {
+  id: string;
+  /** Ключ роли (USER | ADMIN | EDITOR | CASHIER) */
+  role: string;
+}
+
+export interface Role {
+  id: string;
+  key: string;
+  title: string;
+}
+
+export interface ListRolesResponse {
+  roles: Role[];
 }
 
 export interface InitEmailChangeRequest {
@@ -73,6 +112,14 @@ export interface AccountServiceClient {
 
   getAccount(request: GetAccountRequest): Observable<GetAccountResponse>;
 
+  /** Администрирование аккаунтов и ролей */
+
+  listAccounts(request: ListAccountsRequest): Observable<ListAccountsResponse>;
+
+  setAccountRole(request: SetAccountRoleRequest): Observable<GetAccountResponse>;
+
+  listRoles(request: Empty): Observable<ListRolesResponse>;
+
   /** InitEmailChange запрашивает новую почту */
 
   initEmailChange(request: InitEmailChangeRequest): Observable<InitEmailChangeResponse>;
@@ -101,6 +148,18 @@ export interface AccountServiceController {
   getAccount(
     request: GetAccountRequest,
   ): Promise<GetAccountResponse> | Observable<GetAccountResponse> | GetAccountResponse;
+
+  /** Администрирование аккаунтов и ролей */
+
+  listAccounts(
+    request: ListAccountsRequest,
+  ): Promise<ListAccountsResponse> | Observable<ListAccountsResponse> | ListAccountsResponse;
+
+  setAccountRole(
+    request: SetAccountRoleRequest,
+  ): Promise<GetAccountResponse> | Observable<GetAccountResponse> | GetAccountResponse;
+
+  listRoles(request: Empty): Promise<ListRolesResponse> | Observable<ListRolesResponse> | ListRolesResponse;
 
   /** InitEmailChange запрашивает новую почту */
 
@@ -131,6 +190,9 @@ export function AccountServiceControllerMethods() {
   return function (constructor: Function) {
     const grpcMethods: string[] = [
       "getAccount",
+      "listAccounts",
+      "setAccountRole",
+      "listRoles",
       "initEmailChange",
       "confirmEmailChange",
       "initPhoneChange",

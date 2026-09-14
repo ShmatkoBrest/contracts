@@ -1,0 +1,34 @@
+// Публикуется booking-service (SendTicketsEmailUsecase) при запросе «отправить
+// билеты на e-mail» — с account-страницы билета или с кассового чека.
+// Потребляется notification-service, которая рендерит письмо с QR каждого
+// билета (data-URI PNG, встраивается в HTML — без вложений) и отправляет.
+export const TICKETS_EMAIL_REQUESTED = 'booking.tickets.email_requested';
+
+export interface TicketEmailItem {
+    eventTitle: string;
+    screeningDate: string;
+    screeningTime: string;
+    venueName: string;
+    sectorName: string;
+    row: number;
+    number: number;
+    /** data-URI PNG. */
+    qrCode: string;
+}
+
+export interface TicketsEmailRequestedEvent {
+    email: string;
+    orderId: string;
+    tickets: TicketEmailItem[];
+    /**
+     * 3.25.0 — редактор шаблонов писем (`GetEmailTemplate`/`SetEmailTemplate`,
+     * per-event): booking-service уже резолвил переопределение для события
+     * заказа (если есть) и передаёт готовую HTML-разметку с плейсхолдерами
+     * `{{TICKETS_BLOCK}}`/`{{ORDER_ID}}` — notification-service просто
+     * подставляет и шлёт, не заглядывая в booking-service. Пусто — обычный
+     * `tickets.hbs`.
+     */
+    html?: string;
+    /** Пусто — тема по умолчанию ("Ваш билет" / "Ваши билеты (N)"). */
+    subject?: string;
+}

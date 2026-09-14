@@ -46,6 +46,11 @@ service SubscriptionService {
     rpc CreateCashierSubscriptionSale (CreateCashierSubscriptionSaleRequest) returns (CreateCashierSubscriptionSaleResponse);
     rpc ClaimSubscription (ClaimSubscriptionRequest) returns (UserSubscription);
     rpc ListCashierSubscriptionSales (ListCashierSubscriptionSalesRequest) returns (ListCashierSubscriptionSalesResponse);
+
+    // 3.23.0: пригласительные абонементы (0 ₽, без оплаты) — тот же раздел
+    // админки, что и пригласительные билеты. Как и кассовая продажа —
+    // выдаёт код привязки (получатель не известен системе заранее).
+    rpc IssueComplimentarySubscription (IssueComplimentarySubscriptionRequest) returns (IssueComplimentarySubscriptionResponse);
 }
 
 // ===== SubscriptionPlan =====
@@ -127,6 +132,10 @@ message PurchaseSubscriptionRequest {
     optional string sector_id = 4;
     // 3.15.0: несколько мест — несколько отдельных подписок одним платежом.
     repeated SeatRef seats = 5;
+    // 3.19.0: для GENERAL_ADMISSION — сколько подписок купить одним платежом
+    // (по аналогии с несколькими seats у FIXED_SEAT). Не задано/0 → 1.
+    // Игнорируется для FIXED_SEAT (там количество = len(seats)).
+    optional int32 ga_quantity = 6;
 }
 
 message PurchaseSubscriptionResponse {
@@ -376,7 +385,18 @@ message CreateCashierSubscriptionSaleRequest {
     string shift_id = 6;
     // 3.17.0: скидка для GENERAL_ADMISSION-плана (там нет seats, поэтому
     // discount_pct самого SeatRef неприменим). Игнорируется для FIXED_SEAT.
+    // 3.19.0: устарело в пользу `ga` (несколько категорий за одну продажу) —
+    // читается только как фолбэк (одна группа, quantity=1), если `ga` пуст.
     optional int32 discount_pct = 7;
+    // 3.19.0: для GENERAL_ADMISSION — количество абонементов и разбивка по
+    // категориям в одной продаже (например, 2 полных + 1 детский), вместо
+    // одного discount_pct на одну подписку. Игнорируется для FIXED_SEAT.
+    repeated SubscriptionGaInput ga = 8;
+}
+
+message SubscriptionGaInput {
+    int32 quantity = 1;
+    optional int32 discount_pct = 2;
 }
 
 message CashierSubscriptionSaleItem {
@@ -398,6 +418,25 @@ message CreateCashierSubscriptionSaleResponse {
 message ClaimSubscriptionRequest {
     string user_id = 1;
     string code = 2;
+}
+
+message IssueComplimentarySubscriptionRequest {
+    string plan_id = 1;
+    // Места для FIXED_SEAT-плана (по одному абонементу на место); пусто
+    // для GENERAL_ADMISSION.
+    repeated SeatRef seats = 2;
+    string issued_by = 3;
+    optional string note = 4;
+    // 3.23.0: для GENERAL_ADMISSION — сколько выдать одним вызовом
+    // (аналог quantity у пригласительных GA-билетов). Не задано — 1.
+    // Игнорируется для FIXED_SEAT (там количество = len(seats)).
+    optional int32 ga_quantity = 5;
+}
+
+message IssueComplimentarySubscriptionResponse {
+    // Переиспользует существующее сообщение кассовой продажи — та же форма
+    // (subscription_id, claim_code, amount — здесь всегда 0).
+    repeated CashierSubscriptionSaleItem items = 1;
 }
 
 message ListCashierSubscriptionSalesRequest {

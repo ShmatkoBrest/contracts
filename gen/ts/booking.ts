@@ -31,6 +31,8 @@ export interface CreateCashierSaleRequest {
     | undefined;
   /** Списать баллы лояльности покупателя (копейки; нужен customer_id). */
   redeemPoints: number;
+  /** 3.19.0: GENERAL_ADMISSION-сектора — см. CreateReservationRequest.ga. */
+  ga: GaInput[];
 }
 
 export interface CreateCashierSaleResponse {
@@ -121,7 +123,15 @@ export interface CreateReservationRequest {
   screeningId: string;
   seats: SeatInput[];
   audienceCode?: string | undefined;
-  promoCode?: string | undefined;
+  promoCode?:
+    | string
+    | undefined;
+  /**
+   * 3.19.0: GENERAL_ADMISSION-сектора (без карты мест) — количество вместо
+   * конкретных мест. Может сочетаться с seats в одном заказе (сеанс на
+   * всей арене — разные сектора разного режима). Пуст у старых клиентов.
+   */
+  ga: GaInput[];
 }
 
 export interface CreateReservationResponse {
@@ -138,6 +148,19 @@ export interface SeatInput {
    * CreateCashierSale; CreateReservation (online) её не передаёт — там вся
    * бронь одной категорией, как и раньше (см. top-level audience_code).
    */
+  audienceCode?: string | undefined;
+}
+
+/**
+ * 3.19.0: группа GENERAL_ADMISSION-мест одной категории в одном секторе —
+ * сектор без нумерации, поэтому вместо repeated SeatInput передаётся
+ * количество. Несколько GaInput с одним sector_id, но разным audience_code —
+ * разбивка одной продажи по категориям (например, 2 полных + 1 детский).
+ */
+export interface GaInput {
+  sectorId: string;
+  quantity: number;
+  /** Как и SeatInput.audience_code — читается только CreateCashierSale. */
   audienceCode?: string | undefined;
 }
 
@@ -166,6 +189,69 @@ export interface ListReservedSeatsRequest {
 
 export interface ListReservedSeatsResponse {
   reservedSeatIds: string[];
+}
+
+export interface GetGaAvailabilityRequest {
+  screeningId: string;
+  sectorId: string;
+}
+
+export interface GetGaAvailabilityResponse {
+  /**
+   * Число GA-билетов сектора на этот сеанс со статусом RESERVED|PAID
+   * (неоплаченные брони освобождает ExpireReservationsService, как и для
+   * обычных мест). Остаток вместимости = Sector.capacity (arena-service) − sold.
+   */
+  sold: number;
+}
+
+export interface SyncHoldRequest {
+  userId: string;
+  screeningId: string;
+  /**
+   * Желаемый ИТОГОВЫЙ набор — не дельта. Место, отсутствующее здесь, но
+   * ранее удержанное этим пользователем на этот сеанс, освобождается.
+   */
+  seats: SeatInput[];
+  ga: GaInput[];
+  audienceCode?: string | undefined;
+  promoCode?: string | undefined;
+}
+
+export interface SyncHoldResponse {
+  /** Пусто, если после синка холд пуст (все места сняты из корзины). */
+  orderId?: string | undefined;
+  expiresAt?: Timestamp | undefined;
+  amount: number;
+  /**
+   * seat_id из запроса, которые не удалось удержать — заняты другим
+   * холдом/заказом; фронт должен снять их из локальной корзины.
+   */
+  seatConflicts: string[];
+  /**
+   * sector_id GA-групп, где запрошенное количество не поместилось
+   * целиком в остаток вместимости (частично удержано, см. amount).
+   */
+  gaConflicts: string[];
+}
+
+export interface FinalizeHoldRequest {
+  userId: string;
+  screeningId: string;
+}
+
+export interface FinalizeHoldResponse {
+  orderId: string;
+  amount: number;
+}
+
+export interface SendTicketsEmailRequest {
+  orderId: string;
+  email: string;
+}
+
+export interface SendTicketsEmailResponse {
+  ok: boolean;
 }
 
 export interface BookingSeatInfo {
@@ -374,6 +460,43 @@ export interface SetPrintTemplateResponse {
   ok: boolean;
 }
 
+export interface GetEmailTemplateRequest {
+  /**
+   * 3.25.0: пусто = общий шаблон по умолчанию; иначе — шаблон события
+   * (с откатом на умолчание, если у события своего нет).
+   */
+  eventId: string;
+}
+
+export interface GetEmailTemplateResponse {
+  /**
+   * Полная HTML-разметка письма (WYSIWYG-редактор на фронте); содержит
+   * плейсхолдеры {{TICKETS_BLOCK}}/{{ORDER_ID}}, которые notification-service
+   * подставляет при отправке.
+   */
+  html: string;
+  /**
+   * Пусто = тема письма считается по умолчанию (notification-service сам
+   * решает "Ваш билет" / "Ваши билеты (N)").
+   */
+  subject: string;
+  /** true, если вернулся шаблон самого события, а не общий по умолчанию. */
+  isOverride: boolean;
+}
+
+export interface SetEmailTemplateRequest {
+  html: string;
+  subject: string;
+  /** Пусто = общий шаблон по умолчанию. */
+  eventId: string;
+  /** true + event_id → удалить шаблон события (вернуться к умолчанию). */
+  delete: boolean;
+}
+
+export interface SetEmailTemplateResponse {
+  ok: boolean;
+}
+
 export const BOOKING_V1_PACKAGE_NAME = "booking.v1";
 
 export interface BookingServiceClient {
@@ -400,6 +523,38 @@ export interface BookingServiceClient {
   /** получение занятых мест */
 
   listReservedSeats(request: ListReservedSeatsRequest): Observable<ListReservedSeatsResponse>;
+
+  /**
+   * 3.19.0: сколько GENERAL_ADMISSION-билетов уже продано/держится брони
+   * в секторе без нумерации мест на этот сеанс (для остатка вместимости —
+   * capacity сектора знает только arena-service, а не booking).
+   */
+
+  getGaAvailability(request: GetGaAvailabilityRequest): Observable<GetGaAvailabilityResponse>;
+
+  /**
+   * 3.22.0: TTL-холд корзины online-покупки — реальная серверная бронь
+   * мест/GA-единиц уже в момент выбора (не только на чекауте), до 10 минут
+   * с продлением при каждой синхронизации корзины. Снятое с корзины место
+   * освобождается сразу же следующим вызовом (не входит в seats/ga).
+   */
+
+  syncHold(request: SyncHoldRequest): Observable<SyncHoldResponse>;
+
+  /**
+   * Финализация холда перед оплатой — payment-service берёт отсюда
+   * orderId/amount вместо повторного CreateReservation (холд уже всё
+   * провалидировал и посчитал при последней синхронизации).
+   */
+
+  finalizeHold(request: FinalizeHoldRequest): Observable<FinalizeHoldResponse>;
+
+  /**
+   * 3.23.0: отправить все билеты заказа на e-mail (каждый билет — со своим
+   * QR, письмо рендерит notification-service). Только для PAID-заказов.
+   */
+
+  sendTicketsEmail(request: SendTicketsEmailRequest): Observable<SendTicketsEmailResponse>;
 
   /**
    * ===== Касса: смены и продажи =====
@@ -463,6 +618,12 @@ export interface BookingServiceClient {
   getPrintTemplate(request: GetPrintTemplateRequest): Observable<GetPrintTemplateResponse>;
 
   setPrintTemplate(request: SetPrintTemplateRequest): Observable<SetPrintTemplateResponse>;
+
+  /** Шаблон письма с билетами: общий по умолчанию + переопределения под событие (3.25.0). */
+
+  getEmailTemplate(request: GetEmailTemplateRequest): Observable<GetEmailTemplateResponse>;
+
+  setEmailTemplate(request: SetEmailTemplateRequest): Observable<SetEmailTemplateResponse>;
 }
 
 export interface BookingServiceController {
@@ -501,6 +662,44 @@ export interface BookingServiceController {
   listReservedSeats(
     request: ListReservedSeatsRequest,
   ): Promise<ListReservedSeatsResponse> | Observable<ListReservedSeatsResponse> | ListReservedSeatsResponse;
+
+  /**
+   * 3.19.0: сколько GENERAL_ADMISSION-билетов уже продано/держится брони
+   * в секторе без нумерации мест на этот сеанс (для остатка вместимости —
+   * capacity сектора знает только arena-service, а не booking).
+   */
+
+  getGaAvailability(
+    request: GetGaAvailabilityRequest,
+  ): Promise<GetGaAvailabilityResponse> | Observable<GetGaAvailabilityResponse> | GetGaAvailabilityResponse;
+
+  /**
+   * 3.22.0: TTL-холд корзины online-покупки — реальная серверная бронь
+   * мест/GA-единиц уже в момент выбора (не только на чекауте), до 10 минут
+   * с продлением при каждой синхронизации корзины. Снятое с корзины место
+   * освобождается сразу же следующим вызовом (не входит в seats/ga).
+   */
+
+  syncHold(request: SyncHoldRequest): Promise<SyncHoldResponse> | Observable<SyncHoldResponse> | SyncHoldResponse;
+
+  /**
+   * Финализация холда перед оплатой — payment-service берёт отсюда
+   * orderId/amount вместо повторного CreateReservation (холд уже всё
+   * провалидировал и посчитал при последней синхронизации).
+   */
+
+  finalizeHold(
+    request: FinalizeHoldRequest,
+  ): Promise<FinalizeHoldResponse> | Observable<FinalizeHoldResponse> | FinalizeHoldResponse;
+
+  /**
+   * 3.23.0: отправить все билеты заказа на e-mail (каждый билет — со своим
+   * QR, письмо рендерит notification-service). Только для PAID-заказов.
+   */
+
+  sendTicketsEmail(
+    request: SendTicketsEmailRequest,
+  ): Promise<SendTicketsEmailResponse> | Observable<SendTicketsEmailResponse> | SendTicketsEmailResponse;
 
   /**
    * ===== Касса: смены и продажи =====
@@ -584,6 +783,16 @@ export interface BookingServiceController {
   setPrintTemplate(
     request: SetPrintTemplateRequest,
   ): Promise<SetPrintTemplateResponse> | Observable<SetPrintTemplateResponse> | SetPrintTemplateResponse;
+
+  /** Шаблон письма с билетами: общий по умолчанию + переопределения под событие (3.25.0). */
+
+  getEmailTemplate(
+    request: GetEmailTemplateRequest,
+  ): Promise<GetEmailTemplateResponse> | Observable<GetEmailTemplateResponse> | GetEmailTemplateResponse;
+
+  setEmailTemplate(
+    request: SetEmailTemplateRequest,
+  ): Promise<SetEmailTemplateResponse> | Observable<SetEmailTemplateResponse> | SetEmailTemplateResponse;
 }
 
 export function BookingServiceControllerMethods() {
@@ -595,6 +804,10 @@ export function BookingServiceControllerMethods() {
       "confirmBooking",
       "cancelBooking",
       "listReservedSeats",
+      "getGaAvailability",
+      "syncHold",
+      "finalizeHold",
+      "sendTicketsEmail",
       "createCashierSale",
       "openShift",
       "closeShift",
@@ -609,6 +822,8 @@ export function BookingServiceControllerMethods() {
       "validateTicket",
       "getPrintTemplate",
       "setPrintTemplate",
+      "getEmailTemplate",
+      "setEmailTemplate",
     ];
     for (const method of grpcMethods) {
       const descriptor: any = Reflect.getOwnPropertyDescriptor(constructor.prototype, method);

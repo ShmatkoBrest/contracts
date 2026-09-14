@@ -57,11 +57,43 @@ export interface CalculatePriceResponse {
    * создании билета для последующей трассируемости расчёта.
    */
   snapshotId: string;
+  /** Бонусные баллы за применённый промокод (loyalty.v1) — копейки. */
+  promoBonusPoints: number;
 }
 
 export interface AppliedRule {
   name: string;
   amount: number;
+}
+
+export interface CalculatePricesItem {
+  sectorId: string;
+  /** Пусто для GENERAL_ADMISSION-секторов без конкретных мест. */
+  seatId?: string | undefined;
+}
+
+export interface CalculatePricesRequest {
+  screeningId: string;
+  userId: string;
+  items: CalculatePricesItem[];
+  audienceCode?: string | undefined;
+  promoCode?:
+    | string
+    | undefined;
+  /** Общее число билетов в заказе (для условий ticket_count). 0 → items.length. */
+  quantity: number;
+  purchaseDate?: Timestamp | undefined;
+}
+
+export interface CalculatePricesResult {
+  /** Эхо seat_id из запроса ('' для GA). */
+  seatId: string;
+  finalPrice: number;
+  snapshotId: string;
+}
+
+export interface CalculatePricesResponse {
+  results: CalculatePricesResult[];
 }
 
 export interface SetPriceTemplateRequest {
@@ -73,6 +105,14 @@ export interface SetPriceTemplateRequest {
 export interface GetPriceTemplateRequest {
   screeningId: string;
   sectorId: string;
+}
+
+export interface ListPriceTemplatesRequest {
+  screeningId: string;
+}
+
+export interface ListPriceTemplatesResponse {
+  templates: PriceTemplate[];
 }
 
 export interface PriceTemplate {
@@ -173,7 +213,11 @@ export interface CreatePromoCodeRequest {
   unlimited: boolean;
   usageLimit?: number | undefined;
   validFrom?: Timestamp | undefined;
-  validTo?: Timestamp | undefined;
+  validTo?:
+    | Timestamp
+    | undefined;
+  /** Бонусные баллы лояльности за ввод промокода (копейки). */
+  bonusPoints?: number | undefined;
 }
 
 export interface DeactivatePromoCodeRequest {
@@ -190,6 +234,7 @@ export interface PromoCode {
   usedCount: number;
   validFrom?: Timestamp | undefined;
   validTo?: Timestamp | undefined;
+  bonusPoints: number;
 }
 
 export interface CreateAudienceRequest {
@@ -228,11 +273,24 @@ export interface PricingServiceClient {
 
   calculatePrice(request: CalculatePriceRequest): Observable<CalculatePriceResponse>;
 
+  /**
+   * Пакетный расчёт цены нескольких билетов одного заказа (booking-service
+   * при бронировании на несколько мест — вместо N поштучных CalculatePrice).
+   * Для каждого элемента создаётся собственный PriceSnapshot. Результаты
+   * возвращаются в том же порядке, что и items.
+   */
+
+  calculatePrices(request: CalculatePricesRequest): Observable<CalculatePricesResponse>;
+
   /** Базовая цена сектора на конкретный сеанс */
 
   setPriceTemplate(request: SetPriceTemplateRequest): Observable<PriceTemplate>;
 
   getPriceTemplate(request: GetPriceTemplateRequest): Observable<PriceTemplate>;
+
+  /** Все базовые цены секторов на конкретный сеанс (для витрины/схемы зала) */
+
+  listPriceTemplates(request: ListPriceTemplatesRequest): Observable<ListPriceTemplatesResponse>;
 
   /** Индивидуальная цена конкретного места на конкретный сеанс */
 
@@ -280,6 +338,17 @@ export interface PricingServiceController {
     request: CalculatePriceRequest,
   ): Promise<CalculatePriceResponse> | Observable<CalculatePriceResponse> | CalculatePriceResponse;
 
+  /**
+   * Пакетный расчёт цены нескольких билетов одного заказа (booking-service
+   * при бронировании на несколько мест — вместо N поштучных CalculatePrice).
+   * Для каждого элемента создаётся собственный PriceSnapshot. Результаты
+   * возвращаются в том же порядке, что и items.
+   */
+
+  calculatePrices(
+    request: CalculatePricesRequest,
+  ): Promise<CalculatePricesResponse> | Observable<CalculatePricesResponse> | CalculatePricesResponse;
+
   /** Базовая цена сектора на конкретный сеанс */
 
   setPriceTemplate(
@@ -289,6 +358,12 @@ export interface PricingServiceController {
   getPriceTemplate(
     request: GetPriceTemplateRequest,
   ): Promise<PriceTemplate> | Observable<PriceTemplate> | PriceTemplate;
+
+  /** Все базовые цены секторов на конкретный сеанс (для витрины/схемы зала) */
+
+  listPriceTemplates(
+    request: ListPriceTemplatesRequest,
+  ): Promise<ListPriceTemplatesResponse> | Observable<ListPriceTemplatesResponse> | ListPriceTemplatesResponse;
 
   /** Индивидуальная цена конкретного места на конкретный сеанс */
 
@@ -336,8 +411,10 @@ export function PricingServiceControllerMethods() {
   return function (constructor: Function) {
     const grpcMethods: string[] = [
       "calculatePrice",
+      "calculatePrices",
       "setPriceTemplate",
       "getPriceTemplate",
+      "listPriceTemplates",
       "setSeatPriceOverride",
       "deleteSeatPriceOverride",
       "createPricingRule",

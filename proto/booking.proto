@@ -17,6 +17,24 @@ service BookingService {
     rpc CancelBooking (CancelBookingRequest) returns (CancelBookingResponse);
     // получение занятых мест
     rpc ListReservedSeats (ListReservedSeatsRequest) returns (ListReservedSeatsResponse);
+    // 3.19.0: сколько GENERAL_ADMISSION-билетов уже продано/держится брони
+    // в секторе без нумерации мест на этот сеанс (для остатка вместимости —
+    // capacity сектора знает только arena-service, а не booking).
+    rpc GetGaAvailability (GetGaAvailabilityRequest) returns (GetGaAvailabilityResponse);
+
+    // 3.22.0: TTL-холд корзины online-покупки — реальная серверная бронь
+    // мест/GA-единиц уже в момент выбора (не только на чекауте), до 10 минут
+    // с продлением при каждой синхронизации корзины. Снятое с корзины место
+    // освобождается сразу же следующим вызовом (не входит в seats/ga).
+    rpc SyncHold (SyncHoldRequest) returns (SyncHoldResponse);
+    // Финализация холда перед оплатой — payment-service берёт отсюда
+    // orderId/amount вместо повторного CreateReservation (холд уже всё
+    // провалидировал и посчитал при последней синхронизации).
+    rpc FinalizeHold (FinalizeHoldRequest) returns (FinalizeHoldResponse);
+
+    // 3.23.0: отправить все билеты заказа на e-mail (каждый билет — со своим
+    // QR, письмо рендерит notification-service). Только для PAID-заказов.
+    rpc SendTicketsEmail (SendTicketsEmailRequest) returns (SendTicketsEmailResponse);
 
     // ===== Касса: смены и продажи =====
     // Продажа на кассе: бронь + подтверждение + учёт в открытой смене кассира.
@@ -49,6 +67,9 @@ service BookingService {
     // Макет термопечати: общий по умолчанию + переопределения под событие (3.12.0).
     rpc GetPrintTemplate (GetPrintTemplateRequest) returns (GetPrintTemplateResponse);
     rpc SetPrintTemplate (SetPrintTemplateRequest) returns (SetPrintTemplateResponse);
+    // Шаблон письма с билетами: общий по умолчанию + переопределения под событие (3.25.0).
+    rpc GetEmailTemplate (GetEmailTemplateRequest) returns (GetEmailTemplateResponse);
+    rpc SetEmailTemplate (SetEmailTemplateRequest) returns (SetEmailTemplateResponse);
 }
 
 // ===== Cashier =====
@@ -65,6 +86,8 @@ message CreateCashierSaleRequest {
     optional string promo_code = 7;
     // Списать баллы лояльности покупателя (копейки; нужен customer_id).
     int32 redeem_points = 8;
+    // 3.19.0: GENERAL_ADMISSION-сектора — см. CreateReservationRequest.ga.
+    repeated GaInput ga = 9;
 }
 
 message CreateCashierSaleResponse {
@@ -161,6 +184,10 @@ message CreateReservationRequest {
     repeated SeatInput seats = 3;
     optional string audience_code = 4;
     optional string promo_code = 5;
+    // 3.19.0: GENERAL_ADMISSION-сектора (без карты мест) — количество вместо
+    // конкретных мест. Может сочетаться с seats в одном заказе (сеанс на
+    // всей арене — разные сектора разного режима). Пуст у старых клиентов.
+    repeated GaInput ga = 6;
 }
 
 message CreateReservationResponse {
@@ -176,6 +203,17 @@ message SeatInput {
     // CreateCashierSale; CreateReservation (online) её не передаёт — там вся
     // бронь одной категорией, как и раньше (см. top-level audience_code).
     optional string audience_code = 2;
+}
+
+// 3.19.0: группа GENERAL_ADMISSION-мест одной категории в одном секторе —
+// сектор без нумерации, поэтому вместо repeated SeatInput передаётся
+// количество. Несколько GaInput с одним sector_id, но разным audience_code —
+// разбивка одной продажи по категориям (например, 2 полных + 1 детский).
+message GaInput {
+    string sector_id = 1;
+    int32 quantity = 2;
+    // Как и SeatInput.audience_code — читается только CreateCashierSale.
+    optional string audience_code = 3;
 }
 
 message ConfirmBookingRequest {
@@ -203,6 +241,63 @@ message ListReservedSeatsRequest {
 
 message ListReservedSeatsResponse {
     repeated string reserved_seat_ids = 1;
+}
+
+message GetGaAvailabilityRequest {
+    string screening_id = 1;
+    string sector_id = 2;
+}
+
+message GetGaAvailabilityResponse {
+    // Число GA-билетов сектора на этот сеанс со статусом RESERVED|PAID
+    // (неоплаченные брони освобождает ExpireReservationsService, как и для
+    // обычных мест). Остаток вместимости = Sector.capacity (arena-service) − sold.
+    int32 sold = 1;
+}
+
+// ===== 3.22.0: TTL-холд корзины =====
+
+message SyncHoldRequest {
+    string user_id = 1;
+    string screening_id = 2;
+    // Желаемый ИТОГОВЫЙ набор — не дельта. Место, отсутствующее здесь, но
+    // ранее удержанное этим пользователем на этот сеанс, освобождается.
+    repeated SeatInput seats = 3;
+    repeated GaInput ga = 4;
+    optional string audience_code = 5;
+    optional string promo_code = 6;
+}
+
+message SyncHoldResponse {
+    // Пусто, если после синка холд пуст (все места сняты из корзины).
+    optional string order_id = 1;
+    optional google.protobuf.Timestamp expires_at = 2;
+    int32 amount = 3;
+    // seat_id из запроса, которые не удалось удержать — заняты другим
+    // холдом/заказом; фронт должен снять их из локальной корзины.
+    repeated string seat_conflicts = 4;
+    // sector_id GA-групп, где запрошенное количество не поместилось
+    // целиком в остаток вместимости (частично удержано, см. amount).
+    repeated string ga_conflicts = 5;
+}
+
+message FinalizeHoldRequest {
+    string user_id = 1;
+    string screening_id = 2;
+}
+
+message FinalizeHoldResponse {
+    string order_id = 1;
+    int32 amount = 2;
+}
+
+message SendTicketsEmailRequest {
+    string order_id = 1;
+    string email = 2;
+}
+
+message SendTicketsEmailResponse {
+    bool ok = 1;
 }
 
 message BookingSeatInfo {
@@ -400,5 +495,36 @@ message SetPrintTemplateRequest {
 }
 
 message SetPrintTemplateResponse {
+    bool ok = 1;
+}
+
+message GetEmailTemplateRequest {
+    // 3.25.0: пусто = общий шаблон по умолчанию; иначе — шаблон события
+    // (с откатом на умолчание, если у события своего нет).
+    string event_id = 1;
+}
+
+message GetEmailTemplateResponse {
+    // Полная HTML-разметка письма (WYSIWYG-редактор на фронте); содержит
+    // плейсхолдеры {{TICKETS_BLOCK}}/{{ORDER_ID}}, которые notification-service
+    // подставляет при отправке.
+    string html = 1;
+    // Пусто = тема письма считается по умолчанию (notification-service сам
+    // решает "Ваш билет" / "Ваши билеты (N)").
+    string subject = 2;
+    // true, если вернулся шаблон самого события, а не общий по умолчанию.
+    bool is_override = 3;
+}
+
+message SetEmailTemplateRequest {
+    string html = 1;
+    string subject = 2;
+    // Пусто = общий шаблон по умолчанию.
+    string event_id = 3;
+    // true + event_id → удалить шаблон события (вернуться к умолчанию).
+    bool delete = 4;
+}
+
+message SetEmailTemplateResponse {
     bool ok = 1;
 }

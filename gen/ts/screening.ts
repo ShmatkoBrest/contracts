@@ -13,7 +13,11 @@ export const protobufPackage = "screening.v1";
 
 export interface CreateScreeningRequest {
   eventId: string;
-  sectorId: string;
+  /**
+   * Сеанс проводится на всей арене. Сектор покупатель/кассир выбирает
+   * при выборе мест (contracts 3.7.0 — раньше здесь был sector_id).
+   */
+  arenaId: string;
   startAt: string;
   endAt: string;
 }
@@ -24,7 +28,22 @@ export interface CreateScreeningResponse {
 
 export interface GetScreeningsRequest {
   arenaId?: string | undefined;
-  date?: string | undefined;
+  date?:
+    | string
+    | undefined;
+  /**
+   * 3.8.0: если задан — только сеансы, которые разрешено продавать этому
+   * кассиру (сеансы без назначенных кассиров разрешены всем).
+   */
+  cashierId?:
+    | string
+    | undefined;
+  /**
+   * 3.21.0: конец диапазона дат (включительно), YYYY-MM-DD. Не задан —
+   * старое поведение (один день `date`). Задан без `date` — игнорируется
+   * (диапазон без начала не имеет смысла).
+   */
+  dateTo?: string | undefined;
 }
 
 export interface GetScreeningsResponse {
@@ -51,7 +70,7 @@ export interface GetScreeningResponse {
 export interface UpdateScreeningRequest {
   id: string;
   eventId?: string | undefined;
-  sectorId?: string | undefined;
+  arenaId?: string | undefined;
   startAt?: string | undefined;
   endAt?: string | undefined;
 }
@@ -68,6 +87,29 @@ export interface DeleteScreeningResponse {
   ok: boolean;
 }
 
+export interface GetScreeningCashiersRequest {
+  screeningId: string;
+}
+
+export interface SetScreeningCashiersRequest {
+  screeningId: string;
+  /** id аккаунтов кассиров. Пустой список = сеанс открыт всем кассирам. */
+  cashierIds: string[];
+}
+
+export interface ScreeningCashiersResponse {
+  cashierIds: string[];
+}
+
+export interface CanCashierSellRequest {
+  cashierId: string;
+  screeningId: string;
+}
+
+export interface CanCashierSellResponse {
+  allowed: boolean;
+}
+
 export interface Event {
   id: string;
   title: string;
@@ -80,11 +122,18 @@ export interface Event {
 export interface Screening {
   id: string;
   startAt: Timestamp | undefined;
-  endAt: Timestamp | undefined;
-  arena: Arena | undefined;
-  sector: Sector | undefined;
+  endAt:
+    | Timestamp
+    | undefined;
+  /**
+   * Сеанс на всей арене. Секторы и их места запрашиваются отдельно
+   * (sector.v1 ListSectorsByArena / seat.v1) при выборе мест.
+   */
+  arena:
+    | Arena
+    | undefined;
+  /** 5 (Sector sector) и 7 (repeated SeatType seat_type) удалены в 3.7.0. */
   event: Event | undefined;
-  seatType: SeatType[];
 }
 
 export interface Arena {
@@ -92,15 +141,6 @@ export interface Arena {
   name: string;
   address: string;
   image: string;
-}
-
-export interface Sector {
-  id: string;
-  name: string;
-}
-
-export interface SeatType {
-  type: string;
 }
 
 export const SCREENING_V1_PACKAGE_NAME = "screening.v1";
@@ -129,6 +169,22 @@ export interface ScreeningServiceClient {
   /** Удаление сеанса */
 
   deleteScreening(request: DeleteScreeningRequest): Observable<DeleteScreeningResponse>;
+
+  /**
+   * --- Права кассиров на продажу сеанса (3.8.0) ---
+   * Список id кассиров, которым разрешён этот сеанс. Пустой список = сеанс
+   * открыт всем кассирам (обратная совместимость).
+   */
+
+  getScreeningCashiers(request: GetScreeningCashiersRequest): Observable<ScreeningCashiersResponse>;
+
+  /** Заменить список разрешённых кассиров целиком. */
+
+  setScreeningCashiers(request: SetScreeningCashiersRequest): Observable<ScreeningCashiersResponse>;
+
+  /** Проверка: может ли кассир продавать этот сеанс (для booking-service). */
+
+  canCashierSell(request: CanCashierSellRequest): Observable<CanCashierSellResponse>;
 }
 
 export interface ScreeningServiceController {
@@ -167,6 +223,28 @@ export interface ScreeningServiceController {
   deleteScreening(
     request: DeleteScreeningRequest,
   ): Promise<DeleteScreeningResponse> | Observable<DeleteScreeningResponse> | DeleteScreeningResponse;
+
+  /**
+   * --- Права кассиров на продажу сеанса (3.8.0) ---
+   * Список id кассиров, которым разрешён этот сеанс. Пустой список = сеанс
+   * открыт всем кассирам (обратная совместимость).
+   */
+
+  getScreeningCashiers(
+    request: GetScreeningCashiersRequest,
+  ): Promise<ScreeningCashiersResponse> | Observable<ScreeningCashiersResponse> | ScreeningCashiersResponse;
+
+  /** Заменить список разрешённых кассиров целиком. */
+
+  setScreeningCashiers(
+    request: SetScreeningCashiersRequest,
+  ): Promise<ScreeningCashiersResponse> | Observable<ScreeningCashiersResponse> | ScreeningCashiersResponse;
+
+  /** Проверка: может ли кассир продавать этот сеанс (для booking-service). */
+
+  canCashierSell(
+    request: CanCashierSellRequest,
+  ): Promise<CanCashierSellResponse> | Observable<CanCashierSellResponse> | CanCashierSellResponse;
 }
 
 export function ScreeningServiceControllerMethods() {
@@ -178,6 +256,9 @@ export function ScreeningServiceControllerMethods() {
       "getScreening",
       "updateScreening",
       "deleteScreening",
+      "getScreeningCashiers",
+      "setScreeningCashiers",
+      "canCashierSell",
     ];
     for (const method of grpcMethods) {
       const descriptor: any = Reflect.getOwnPropertyDescriptor(constructor.prototype, method);
