@@ -42,6 +42,8 @@ service PricingService {
 
     // Аудитории (категории покупателей — студент, пенсионер и т.п.)
     rpc CreateAudience (CreateAudienceRequest) returns (Audience);
+    rpc UpdateAudience (UpdateAudienceRequest) returns (Audience);
+    rpc DeleteAudience (DeleteAudienceRequest) returns (DeleteResponse);
     rpc ListAudiences (ListAudiencesRequest) returns (ListAudiencesResponse);
 }
 
@@ -61,6 +63,12 @@ message CalculatePriceRequest {
     // Момент "покупки" для условий вида purchase_date <= X (Early Bird
     // и т.п.). Если не передан — используется текущее время сервера.
     optional google.protobuf.Timestamp purchase_date = 8;
+    // 2026-09-22: событие/группа события сеанса — резолвится вызывающей
+    // стороной (screening -> event хоп), pricing-service остаётся чистым
+    // калькулятором без собственного gRPC-клиента к event-service. Нужны
+    // для матчинга PricingRuleScope.event_id/event_group_id.
+    optional string event_id = 9;
+    optional string event_group_id = 10;
 }
 
 message CalculatePriceResponse {
@@ -98,6 +106,9 @@ message CalculatePricesRequest {
     // Общее число билетов в заказе (для условий ticket_count). 0 → items.length.
     int32 quantity = 6;
     optional google.protobuf.Timestamp purchase_date = 7;
+    // См. CalculatePriceRequest.event_id/event_group_id.
+    optional string event_id = 8;
+    optional string event_group_id = 9;
 }
 
 message CalculatePricesResult {
@@ -176,6 +187,11 @@ message PricingRuleScopeInput {
     optional string screening_id = 1;
     optional string sector_id = 2;
     optional string seat_id = 3;
+    // 2026-09-22: область действия по событию/группе событий — независимо
+    // от screening/sector/seat (все поля одной записи — AND, незаданные —
+    // wildcard, см. PricingRuleScope в schema.prisma).
+    optional string event_id = 4;
+    optional string event_group_id = 5;
 }
 
 message PricingRuleConditionInput {
@@ -200,6 +216,20 @@ message CreatePricingRuleRequest {
     repeated PricingRuleConditionInput conditions = 11;
 }
 
+// `repeated` полей без обёртки недостаточно — proto3 не различает "поле не
+// передано" и "передан пустой список" для repeated (в отличие от scalar
+// optional). Оборачиваем в message, чтобы `optional` ниже реально отличал
+// "не трогать scopes/conditions" (поле отсутствует) от "заменить на пустой
+// список" (поле присутствует, scopes: [] внутри — правило становится
+// глобальным). Без этого, например, вызов "только вкл/выкл активность"
+// (шлёт один active, без scopes) молча стёр бы всю область действия правила.
+message PricingRuleScopesPatch {
+    repeated PricingRuleScopeInput scopes = 1;
+}
+message PricingRuleConditionsPatch {
+    repeated PricingRuleConditionInput conditions = 1;
+}
+
 message UpdatePricingRuleRequest {
     string id = 1;
     optional string name = 2;
@@ -209,6 +239,12 @@ message UpdatePricingRuleRequest {
     optional bool combinable = 6;
     optional google.protobuf.Timestamp valid_from = 7;
     optional google.protobuf.Timestamp valid_to = 8;
+    // 2026-09-22: раньше тип/область/условия правила нельзя было изменить —
+    // только пересоздать правило целиком.
+    optional RuleType rule_type = 9;
+    optional ValueType value_type = 10;
+    optional PricingRuleScopesPatch scopes = 11;
+    optional PricingRuleConditionsPatch conditions = 12;
 }
 
 message DeletePricingRuleRequest {
@@ -274,9 +310,39 @@ message PromoCode {
 message CreateAudienceRequest {
     string code = 1;
     string title = 2;
+    // 2026-09-22: публичное (для покупателя) название — пусто = показывать
+    // title. Плюс необязательная привязка к событию/группе событий — пусто
+    // в обоих = аудитория доступна на всех событиях (как раньше).
+    optional string public_title = 3;
+    optional string event_id = 4;
+    optional string event_group_id = 5;
 }
 
-message ListAudiencesRequest {}
+message UpdateAudienceRequest {
+    string id = 1;
+    optional string title = 2;
+    // Как SetOrganizerRuleRequest.clear_earn_percent (loyalty.proto) — plain
+    // optional не отличает "не трогать" от "очистить в null", для полей,
+    // которые можно осознанно вернуть к global/дефолту, нужен явный флаг.
+    optional string public_title = 3;
+    bool clear_public_title = 4;
+    optional string event_id = 5;
+    bool clear_event_id = 6;
+    optional string event_group_id = 7;
+    bool clear_event_group_id = 8;
+}
+
+message DeleteAudienceRequest {
+    string id = 1;
+}
+
+message ListAudiencesRequest {
+    // Фильтр по доступности на конкретном событии/группе — пусто = все.
+    // Отдаёт аудитории БЕЗ event_id/event_group_id (глобальные) + аудитории
+    // конкретно этого события/группы.
+    optional string event_id = 1;
+    optional string event_group_id = 2;
+}
 
 message ListAudiencesResponse {
     repeated Audience audiences = 1;
@@ -286,6 +352,9 @@ message Audience {
     string id = 1;
     string code = 2;
     string title = 3;
+    optional string public_title = 4;
+    optional string event_id = 5;
+    optional string event_group_id = 6;
 }
 
 // ===== Общее =====

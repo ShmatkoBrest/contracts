@@ -25,6 +25,24 @@ service ScreeningService {
     rpc SetScreeningCashiers (SetScreeningCashiersRequest) returns (ScreeningCashiersResponse);
     // Проверка: может ли кассир продавать этот сеанс (для booking-service).
     rpc CanCashierSell (CanCashierSellRequest) returns (CanCashierSellResponse);
+
+    // --- Доступ контролёров к сканированию сеанса (3.57.0) ---
+    // Список id контролёров, которым разрешён этот сеанс. Пустой список =
+    // сеанс недоступен ни одному контролёру (deny-by-default, тот же
+    // принцип, что и у ScreeningCashier после 2026-09-16).
+    rpc GetScreeningScanners (GetScreeningScannersRequest) returns (ScreeningScannersResponse);
+    // Заменить список разрешённых контролёров целиком.
+    rpc SetScreeningScanners (SetScreeningScannersRequest) returns (ScreeningScannersResponse);
+    // Проверка: может ли контролёр сканировать этот сеанс (для gateway-service).
+    rpc CanScannerAccess (CanScannerAccessRequest) returns (CanScannerAccessResponse);
+
+    // --- Доступ охраны к сканированию сеанса (3.58.0) ---
+    // Тот же deny-by-default принцип, что у ScreeningScanner — ОТДЕЛЬНОЕ
+    // назначение, не смешивается с контролёрами (роль другая, права шире:
+    // «выпустить» + аналитика прохода, см. gateway-service.scanner.controler.ts).
+    rpc GetScreeningSecurity (GetScreeningSecurityRequest) returns (ScreeningSecurityResponse);
+    rpc SetScreeningSecurity (SetScreeningSecurityRequest) returns (ScreeningSecurityResponse);
+    rpc CanSecurityAccess (CanSecurityAccessRequest) returns (CanSecurityAccessResponse);
 }
 
 message CreateScreeningRequest {
@@ -50,6 +68,12 @@ message GetScreeningsRequest {
     // старое поведение (один день `date`). Задан без `date` — игнорируется
     // (диапазон без начала не имеет смысла).
     optional string date_to = 4;
+    // 3.57.0: если задан — только сеансы, которые разрешено сканировать
+    // этому контролёру (deny-by-default — сеанс без назначенных
+    // контролёров не виден никому, независимо от этого фильтра).
+    optional string scanner_id = 5;
+    // 3.58.0: то же самое, только для роли «охрана» (отдельное назначение).
+    optional string security_id = 6;
 }
 
 message GetScreeningsResponse {
@@ -79,6 +103,13 @@ message UpdateScreeningRequest {
     optional string arena_id = 3;
     optional string start_at = 4;
     optional string end_at = 5;
+    // 3.55.0 — кастомизация кнопки embed-виджета продажи (см. Screening ниже).
+    optional string widget_button_border_radius = 6;
+    optional string widget_button_border_color = 7;
+    optional string widget_button_background_color = 8;
+    optional string widget_button_font_family = 9;
+    // 3.56.0
+    optional string widget_button_text_color = 10;
 }
 
 message UpdateScreeningResponse {
@@ -118,6 +149,58 @@ message CanCashierSellResponse {
     bool allowed = 1;
 }
 
+// --- Доступ контролёров к сканированию (3.57.0) ---
+
+message GetScreeningScannersRequest {
+    string screening_id = 1;
+}
+
+message SetScreeningScannersRequest {
+    string screening_id = 1;
+    // id аккаунтов контролёров. Пустой список = сеанс недоступен ни
+    // одному контролёру (deny-by-default).
+    repeated string scanner_ids = 2;
+}
+
+message ScreeningScannersResponse {
+    repeated string scanner_ids = 1;
+}
+
+message CanScannerAccessRequest {
+    string scanner_id = 1;
+    string screening_id = 2;
+}
+
+message CanScannerAccessResponse {
+    bool allowed = 1;
+}
+
+// --- Доступ охраны к сканированию (3.58.0) ---
+
+message GetScreeningSecurityRequest {
+    string screening_id = 1;
+}
+
+message SetScreeningSecurityRequest {
+    string screening_id = 1;
+    // id аккаунтов охраны. Пустой список = сеанс недоступен ни одному
+    // охраннику (deny-by-default).
+    repeated string security_ids = 2;
+}
+
+message ScreeningSecurityResponse {
+    repeated string security_ids = 1;
+}
+
+message CanSecurityAccessRequest {
+    string security_id = 1;
+    string screening_id = 2;
+}
+
+message CanSecurityAccessResponse {
+    bool allowed = 1;
+}
+
 message Event {
     string id = 1;
     string title = 2;
@@ -136,6 +219,15 @@ message Screening {
     Arena arena = 4;
     Event event = 6;
     // 5 (Sector sector) и 7 (repeated SeatType seat_type) удалены в 3.7.0.
+    // 3.55.0 — конфигурация кнопки embed-виджета продажи билетов на этот
+    // сеанс (карточка сеанса → «Виджет»). Не задано — widget.js использует
+    // свои дефолты.
+    optional string widget_button_border_radius = 8;
+    optional string widget_button_border_color = 9;
+    optional string widget_button_background_color = 10;
+    optional string widget_button_font_family = 11;
+    // 3.56.0
+    optional string widget_button_text_color = 12;
 }
 
 message Arena {

@@ -1,0 +1,179 @@
+import { Observable } from "rxjs";
+export declare const protobufPackage = "sector.v1";
+/**
+ * RESERVED — сектор с конкретными местами (продажа привязана к seatId).
+ * GENERAL_ADMISSION — сектор без конкретных мест, продажа идёт по
+ * количеству (capacity), например фан-зона на 5000 билетов без рассадки.
+ */
+export declare enum SectorMode {
+    RESERVED = 0,
+    GENERAL_ADMISSION = 1,
+    UNRECOGNIZED = -1
+}
+export interface CreateSectorRequest {
+    name: string;
+    arenaId: string;
+    /** layout используется только при mode = RESERVED (места по раскладке рядов). */
+    layout: RowLayout[];
+    /** По умолчанию RESERVED (0) — обычный сектор с конкретными местами. */
+    mode: SectorMode;
+    /** Обязателен при mode = GENERAL_ADMISSION, иначе игнорируется. */
+    capacity?: number | undefined;
+    /**
+     * Свободный режим редактора: явные координаты каждого места. Если
+     * непусто — используется вместо генерации из `layout`.
+     */
+    seats: SeatPositionInput[];
+    /**
+     * Метаданные редактора (полигон сектора на плане арены, трансформ) —
+     * JSON-строка, arena-service хранит как есть.
+     */
+    shapeJson?: string | undefined;
+}
+export interface CreateSectorResponse {
+    sector: Sector | undefined;
+}
+export interface GetSectorRequest {
+    id: string;
+}
+export interface GetSectorResponse {
+    sector: Sector | undefined;
+}
+export interface GetSectorWithSeatsResponse {
+    sector: Sector | undefined;
+    /**
+     * Актуально только для mode = RESERVED; для GENERAL_ADMISSION — пустой список.
+     * Реконструкция по рядам: geometry-поля (curve/spacing/gaps) не
+     * восстанавливаются, они «запечены» в x/y мест — см. `seats`.
+     */
+    layout: RowLayout[];
+    /** Все места сектора с точными координатами и id (для конструктора §12). */
+    seats: SeatDetail[];
+}
+export interface ListSectorsRequest {
+    arenaId: string;
+}
+export interface ListSectorsResponse {
+    sectors: Sector[];
+}
+export interface SeatPositionInput {
+    row: number;
+    number: number;
+    x: number;
+    y: number;
+    type: string;
+}
+export interface UpdateSectorRequest {
+    id: string;
+    name: string;
+    /** Используется только для секторов с mode = RESERVED. */
+    layout: RowLayout[];
+    /** Свободный режим (см. CreateSectorRequest.seats). */
+    seats: SeatPositionInput[];
+    shapeJson?: string | undefined;
+    /**
+     * Используется только для секторов с mode = GENERAL_ADMISSION.
+     * Режим сектора (mode) неизменяем после создания — здесь его нет
+     * намеренно: смена режима постфактум означала бы либо удаление уже
+     * созданных мест, либо потерю данных о capacity, и требует отдельного
+     * явного решения, а не безусловной перезаписи через Update.
+     */
+    capacity?: number | undefined;
+}
+export interface UpdateSectorResponse {
+    sector: Sector | undefined;
+}
+export interface DeleteSectorRequest {
+    id: string;
+}
+export interface DeleteSectorResponse {
+    success: boolean;
+}
+export interface Sector {
+    id: string;
+    name: string;
+    arenaId: string;
+    mode: SectorMode;
+    capacity?: number | undefined;
+    /** Метаданные редактора зала (полигон/трансформ) — JSON-строка. */
+    shapeJson?: string | undefined;
+    /**
+     * 3.17.0: фактическое число мест сектора (COUNT по таблице seats) — для
+     * RESERVED-секторов, где `capacity` не заполняется (она осмыслена только
+     * для GENERAL_ADMISSION). Пусто/0, если мест ещё не раскладывали.
+     */
+    seatCount?: number | undefined;
+}
+export interface RowLayout {
+    row: number;
+    /** Кол-во реальных мест в ряду. */
+    columns: number;
+    type: string;
+    /**
+     * Геометрия/нумерация ряда — всё опционально, при отсутствии
+     * arena-service ведёт себя как раньше (прямоугольная сетка,
+     * x = номер места, y = номер ряда, нумерация с 1).
+     */
+    startNumber?: number | undefined;
+    /** номера-проходы: слот пропускается (место не создаётся) */
+    gaps: number[];
+    /** шаг между местами по X (по умолчанию 1) */
+    seatSpacing?: number | undefined;
+    /** шаг между рядами по Y (по умолчанию 1) */
+    rowSpacing?: number | undefined;
+    /** сдвиг всего ряда по X (ступенчатые трибуны) */
+    offsetX?: number | undefined;
+    /** кривизна ряда: смещение по Y = curve * (i - center)^2 */
+    curve?: number | undefined;
+    /** нумеровать места справа-налево (по умолчанию слева-направо) */
+    numberRtl?: boolean | undefined;
+}
+/**
+ * Место с полной геометрией — для загрузки существующего сектора в конструктор
+ * (§12): нужны точные x/y и стабильный id (на него ссылается pricing).
+ */
+export interface SeatDetail {
+    id: string;
+    row: number;
+    number: number;
+    x: number;
+    y: number;
+    type: string;
+}
+export declare const SECTOR_V1_PACKAGE_NAME = "sector.v1";
+export interface SectorServiceClient {
+    /** Создание сектора */
+    createSector(request: CreateSectorRequest): Observable<CreateSectorResponse>;
+    /** Получение сектора по id */
+    getSector(request: GetSectorRequest): Observable<GetSectorResponse>;
+    /**
+     * Получение сектора по id вместе с раскладкой мест по рядам
+     * (актуально только для секторов с mode = RESERVED)
+     */
+    getSectorWithSeats(request: GetSectorRequest): Observable<GetSectorWithSeatsResponse>;
+    /** Получение секторов для конкретной арены */
+    listSectorsByArena(request: ListSectorsRequest): Observable<ListSectorsResponse>;
+    /** Обновление сектора */
+    updateSector(request: UpdateSectorRequest): Observable<UpdateSectorResponse>;
+    /** Удаление сектора */
+    deleteSector(request: DeleteSectorRequest): Observable<DeleteSectorResponse>;
+}
+export interface SectorServiceController {
+    /** Создание сектора */
+    createSector(request: CreateSectorRequest): Promise<CreateSectorResponse> | Observable<CreateSectorResponse> | CreateSectorResponse;
+    /** Получение сектора по id */
+    getSector(request: GetSectorRequest): Promise<GetSectorResponse> | Observable<GetSectorResponse> | GetSectorResponse;
+    /**
+     * Получение сектора по id вместе с раскладкой мест по рядам
+     * (актуально только для секторов с mode = RESERVED)
+     */
+    getSectorWithSeats(request: GetSectorRequest): Promise<GetSectorWithSeatsResponse> | Observable<GetSectorWithSeatsResponse> | GetSectorWithSeatsResponse;
+    /** Получение секторов для конкретной арены */
+    listSectorsByArena(request: ListSectorsRequest): Promise<ListSectorsResponse> | Observable<ListSectorsResponse> | ListSectorsResponse;
+    /** Обновление сектора */
+    updateSector(request: UpdateSectorRequest): Promise<UpdateSectorResponse> | Observable<UpdateSectorResponse> | UpdateSectorResponse;
+    /** Удаление сектора */
+    deleteSector(request: DeleteSectorRequest): Promise<DeleteSectorResponse> | Observable<DeleteSectorResponse> | DeleteSectorResponse;
+}
+export declare function SectorServiceControllerMethods(): (constructor: Function) => void;
+export declare const SECTOR_SERVICE_NAME = "SectorService";

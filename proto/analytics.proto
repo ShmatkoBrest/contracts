@@ -15,6 +15,20 @@ service AnalyticsService {
     rpc GetOccupancy (OccupancyRequest) returns (Occupancy);
     // Статистика по кассирам и сменам.
     rpc GetCashierStats (PeriodRequest) returns (CashierStats);
+    // 3.32.0: выручка + ставка комиссии + расчётная сумма к перечислению по
+    // организатору(ам). Организатор платит комиссию сам — это только отчёт,
+    // ничего не удерживается автоматически. organizer_id не задан — все
+    // организаторы (платформенный ADMIN); задан — один (self-service
+    // ORGANIZER_ADMIN, видит только себя).
+    rpc ListOrganizerCommissions (OrganizerCommissionsRequest) returns (OrganizerCommissions);
+    // 3.35.0: сводка по одному сеансу (карточка сеанса в админке) — выручка/
+    // билеты/заполняемость, без периода (сеанс — не диапазон дат).
+    rpc GetScreeningSummary (GetScreeningSummaryRequest) returns (ScreeningSummary);
+    // 3.57.0: контроль на входе — сколько билетов уже прошло и за какой
+    // промежуток времени (первый/последний скан). Отдельно от
+    // ScreeningSummary — та кэшируется на 60с и несёт финансовые поля,
+    // которые сканеру/контролю на входе видеть не нужно.
+    rpc GetCheckInStats (GetScreeningSummaryRequest) returns (CheckInStats);
 }
 
 // from/to — ISO-строки (границы включительно по created_at). Пусто — весь период.
@@ -126,4 +140,63 @@ message ShiftStatItem {
     int32 opening_cash = 9;
     optional int32 counted_cash = 10;
     optional int32 difference = 11;
+}
+
+message OrganizerCommissionsRequest {
+    // Пусто — все организаторы. Задан — только этот (self-service).
+    optional string organizer_id = 1;
+    // Фильтр по created_at успешных платежей. Пусто — весь период.
+    optional string from = 2;
+    optional string to = 3;
+}
+
+message OrganizerCommissions {
+    repeated OrganizerCommissionItem items = 1;
+}
+
+message OrganizerCommissionItem {
+    string organizer_id = 1;
+    string title = 2;
+    // Не задана — ставка не назначена этому организатору (считать нечего).
+    optional double commission_percent = 3;
+    int32 revenue = 4;           // сумма успешных платежей организатора за период, копейки
+    int32 payments_count = 5;
+    // round(revenue * commission_percent / 100); отсутствует, если ставка не задана.
+    optional int32 commission_amount = 6;
+}
+
+message GetScreeningSummaryRequest {
+    string screening_id = 1;
+}
+
+// Возвраты сюда НЕ входят (та же честная причина, что и в Overview — таблица
+// refunds в payment-service не хранит screening_id, сузить нечем).
+message ScreeningSummary {
+    int32 revenue = 1;
+    int32 orders = 2;
+    int32 tickets = 3;
+    int32 avg_check = 4;
+    int32 online_revenue = 5;
+    int32 cashier_revenue = 6;
+    int32 capacity = 7;          // сумма вместимости всех секторов арены сеанса
+    int32 sold = 8;               // билетов PAID/RESERVED по всем секторам
+    double occupancy_rate = 9;    // sold / capacity
+    repeated ScreeningSectorSummary sectors = 10;
+}
+
+message ScreeningSectorSummary {
+    string sector_name = 1;
+    int32 capacity = 2;
+    int32 sold = 3;
+    double rate = 4;
+}
+
+// 3.57.0: контроль на входе — см. AnalyticsService.GetCheckInStats.
+message CheckInStats {
+    int32 total_tickets = 1;   // PAID-билеты сеанса (включая COMP)
+    int32 checked_in = 2;
+    int32 remaining = 3;
+    // ISO, не задано (пустая строка) — ни одного прохода ещё не было.
+    string first_check_in_at = 4;
+    string last_check_in_at = 5;
 }

@@ -28,6 +28,26 @@ service OrganizerService {
     rpc SetOrganizerLicense (SetOrganizerLicenseRequest) returns (SetOrganizerLicenseResponse);
     // Резолв X-License-Key на каждый внешний запрос — аналог GetOrganizerByDomain.
     rpc ValidateLicenseKey (ValidateLicenseKeyRequest) returns (ValidateLicenseKeyResponse);
+    // 3.32.0: ставка комиссии платформы для этого организатора. Организатор
+    // перечисляет комиссию САМ — сервис ничего не удерживает автоматически,
+    // только хранит ставку и участвует в отчёте (analytics.v1.
+    // ListOrganizerCommissions). ADMIN-only — решение платформы, не self-service.
+    rpc SetOrganizerCommission (SetOrganizerCommissionRequest) returns (SetOrganizerCommissionResponse);
+    // Включение/отключение функциональных модулей (новости, абонементы, ...)
+    // для конкретного организатора — на публичном сайте организатора
+    // отключённый модуль скрывается целиком (шапка + маршруты). ADMIN-only —
+    // решение платформы о том, что организатору доступно, не self-service.
+    rpc SetOrganizerModules (SetOrganizerModulesRequest) returns (SetOrganizerModulesResponse);
+    // Организаторский white-label сайт (оверлей презентационных файлов
+    // поверх core `frontend`, собирается и раздаётся платформой под
+    // `domain`). Self-service для своего ORGANIZER_ADMIN — это его
+    // собственная презентация, не решение платформы о доверии (в отличие
+    // от лицензии).
+    rpc SetOrganizerSiteEnabled (SetOrganizerSiteEnabledRequest) returns (SetOrganizerSiteEnabledResponse);
+    // Пишет статус сборки (site-builder через gateway) — отдельная RPC, а
+    // не общий UpdateOrganizer, чтобы не read-modify-write гонять поля,
+    // которые сборщик не знает (enabled и т.п.).
+    rpc RecordOrganizerSiteBuild (RecordOrganizerSiteBuildRequest) returns (RecordOrganizerSiteBuildResponse);
 }
 
 message ListOrganizersResponse {
@@ -110,6 +130,56 @@ message ValidateLicenseKeyResponse {
     Organizer organizer = 2;
 }
 
+message SetOrganizerCommissionRequest {
+    string organizer_id = 1;
+    double commission_percent = 2;
+    // true — снять ставку (не назначена/не применяется), остальные поля игнорируются.
+    bool clear = 3;
+}
+
+message SetOrganizerCommissionResponse {
+    Organizer organizer = 1;
+}
+
+message SetOrganizerModulesRequest {
+    string organizer_id = 1;
+    // Ключи ОТКЛЮЧЁННЫХ модулей (не список разрешённых) — пусто = всё
+    // включено (дефолт для организатора без явного ограничения). Известные
+    // ключи сейчас: "news", "subscriptions", "partners", "loyalty".
+    repeated string disabled_modules = 2;
+}
+
+message SetOrganizerModulesResponse {
+    Organizer organizer = 1;
+}
+
+message SetOrganizerSiteEnabledRequest {
+    string organizer_id = 1;
+    bool enabled = 2;
+}
+
+message SetOrganizerSiteEnabledResponse {
+    Organizer organizer = 1;
+}
+
+message RecordOrganizerSiteBuildRequest {
+    string organizer_id = 1;
+    // NONE | VALIDATING | BUILDING | SUCCESS | FAILED
+    string status = 2;
+    // Текущая версия загруженного оверлея — вызывающая сторона передаёт то
+    // же значение, что уже хранится, если это просто пересборка без нового
+    // аплоада, или инкрементированное — если аплоад был валиден.
+    int32 overlay_version = 3;
+    // ISO-строка, пусто — не менять сохранённое значение.
+    string built_at = 4;
+    // Пусто на успехе/промежуточных статусах — очищает предыдущую ошибку.
+    string build_error = 5;
+}
+
+message RecordOrganizerSiteBuildResponse {
+    Organizer organizer = 1;
+}
+
 message Organizer {
     string id          = 1;
     string title       = 2;
@@ -121,4 +191,21 @@ message Organizer {
     string license_key = 6;
     string license_status = 7;
     string license_expires_at = 8;
+    // 3.32.0: ставка комиссии платформы (не задана — комиссия не назначена).
+    // Тот же принцип, что и лицензия: ТОЛЬКО для ADMIN/владельца-организации,
+    // публичные ответы обязаны вырезать перед отдачей.
+    optional double commission_percent = 9;
+    // Отключённые функциональные модули для этого организатора (пусто —
+    // всё включено). Не приватное поле в отличие от лицензии/комиссии —
+    // публичный сайт организатора обязан это знать, чтобы скрыть разделы.
+    repeated string disabled_modules = 10;
+    // Организаторский white-label сайт — ТОЛЬКО для ADMIN/владельца-
+    // организации (тот же принцип, что лицензия/комиссия выше), публичные
+    // ответы обязаны вырезать перед отдачей.
+    bool site_enabled = 11;
+    // NONE | VALIDATING | BUILDING | SUCCESS | FAILED
+    string site_build_status = 12;
+    int32 site_overlay_version = 13;
+    string site_built_at = 14;
+    string site_build_error = 15;
 }

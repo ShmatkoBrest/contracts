@@ -3,6 +3,7 @@ syntax = "proto3";
 package account.v1;
 
 import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
 
 // AccountService отвечает за операции с аккаунтом.
 service AccountService {
@@ -25,6 +26,35 @@ service AccountService {
     // ConfirmPhoneChange подтверждает новый телефон
   rpc ConfirmPhoneChange(ConfirmPhoneChangeRequest) returns (ConfirmPhoneChangeResponse);
 
+    // 3.63.0: закон РБ «О защите персональных данных» — публичный документ
+    // политики обработки + журнал согласий аккаунта (append-only, как
+    // loyalty-ledger — согласие/отзыв не перезаписываются, а добавляются
+    // новой строкой, чтобы история была проверяемой).
+    //
+    // Публично, без авторизации — читает вся публичная часть сайта, как
+    // ListContent в content.proto.
+    rpc GetLegalDocument(GetLegalDocumentRequest) returns (GetLegalDocumentResponse);
+    // ADMIN. Версия НЕ принимается от вызывающей стороны — только
+    // авто-инкремент на сервере: версия обязана быть неподделываемой,
+    // на неё ссылаются уже данные согласия аккаунтов.
+    rpc SetLegalDocument(SetLegalDocumentRequest) returns (GetLegalDocumentResponse);
+
+    // Текущий статус согласия аккаунта (для страницы «Мои данные»).
+    rpc GetConsentStatus(GetConsentStatusRequest) returns (GetConsentStatusResponse);
+    // Явное (повторное) согласие — например, после обновления версии
+    // документа. Идемпотентно: если согласие на эту версию уже дано, новая
+    // строка не пишется.
+    rpc GiveConsent(GiveConsentRequest) returns (GetConsentStatusResponse);
+    // Отзыв согласия — тем же способом, каким оно давалось (кнопка в
+    // аккаунте), как того требует закон. Не удаляет аккаунт и не трогает
+    // уже собранные данные (сроки хранения которых определяются отдельно,
+    // напр. бухгалтерским/налоговым учётом уже совершённых заказов) — только
+    // фиксирует отзыв в журнале; дальнейший вход (SendOtp) потребует
+    // согласия заново.
+    rpc WithdrawConsent(WithdrawConsentRequest) returns (GetConsentStatusResponse);
+    // Полная история согласий/отзывов аккаунта — реализация права
+    // «запросить информацию об обработке своих данных».
+    rpc ListConsentHistory(ListConsentHistoryRequest) returns (ListConsentHistoryResponse);
 }
 
 message GetAccountRequest {
@@ -42,6 +72,10 @@ message GetAccountResponse {
   // string, т.к. роли вынесены в таблицу. Канонический список ключей —
   // `ROLE_KEYS` в @usteam/common.
   string role              = 6;
+  // 3.31.0: organizerId для роли ORGANIZER_ADMIN — единственная организация,
+  // данными которой этот аккаунт вправе управлять в gateway-service. Пусто —
+  // роль без привязки (обычный случай для всех остальных ролей).
+  string organizer_id      = 7;
 
 }
 
@@ -61,8 +95,12 @@ message ListAccountsResponse {
 
 message SetAccountRoleRequest {
   string id   = 1;
-  // Ключ роли (USER | ADMIN | EDITOR | CASHIER)
+  // Ключ роли (USER | ADMIN | EDITOR | CASHIER | ORGANIZER_ADMIN)
   string role = 2;
+  // Обязателен, только если role = ORGANIZER_ADMIN; для любой другой роли
+  // игнорируется и очищается на стороне auth-service (не доверяем клиенту
+  // рассинхронизированную комбинацию роль+организация).
+  string organizer_id = 3;
 }
 
 message Role {
@@ -111,4 +149,86 @@ message ConfirmPhoneChangeRequest {
 
 message ConfirmPhoneChangeResponse {
   bool ok = 1;
+}
+
+// ===== Персональные данные (закон РБ «О защите персональных данных») =====
+
+// doc_type — открытая строка (как NewsArticle.scope в news.proto), не enum:
+// платформа сегодня знает только "privacy" (единый документ, объединяющий
+// политику обработки и раздел про cookie — так это оформлено на практике
+// большинством площадок в РБ), но формат не завязан на единственное
+// значение.
+message GetLegalDocumentRequest {
+  string doc_type = 1;
+}
+
+message LegalDocument {
+  string doc_type                     = 1;
+  string title                        = 2;
+  string body                         = 3;
+  // Монотонно растёт на каждый SetLegalDocument — на неё ссылаются записи
+  // согласия (ConsentEntry.version), поэтому клиент её не задаёт.
+  int32  version                      = 4;
+  google.protobuf.Timestamp updated_at = 5;
+}
+
+message GetLegalDocumentResponse {
+  LegalDocument document = 1;
+}
+
+message SetLegalDocumentRequest {
+  string doc_type = 1;
+  string title    = 2;
+  string body     = 3;
+}
+
+message GetConsentStatusRequest {
+  string account_id = 1;
+  string doc_type   = 2;
+}
+
+message ConsentStatus {
+  // true — последняя запись в журнале этого account_id/doc_type — GIVEN
+  // более поздняя, чем любой WITHDRAWN.
+  bool given                              = 1;
+  // Версия документа, на которую дано ныне действующее согласие (0, если
+  // given=false или согласия не было вовсе).
+  int32 version                           = 2;
+  optional google.protobuf.Timestamp given_at     = 3;
+  optional google.protobuf.Timestamp withdrawn_at = 4;
+  // Версия документа, актуальная ПРЯМО СЕЙЧАС — позволяет вызывающей
+  // стороне понять, что согласие устарело (given=true, но version <
+  // current_doc_version), не делая отдельный запрос GetLegalDocument.
+  int32 current_doc_version               = 5;
+}
+
+message GetConsentStatusResponse {
+  ConsentStatus status = 1;
+}
+
+message GiveConsentRequest {
+  string account_id = 1;
+  string doc_type   = 2;
+}
+
+message WithdrawConsentRequest {
+  string account_id = 1;
+  string doc_type   = 2;
+}
+
+message ListConsentHistoryRequest {
+  string account_id = 1;
+}
+
+message ConsentEntry {
+  string doc_type                     = 1;
+  int32  version                      = 2;
+  // "GIVEN" | "WITHDRAWN" — строка, не enum: тот же принцип wire-безопасности,
+  // что и у doc_type/NewsArticle.scope (см. COMMON.md).
+  string action                       = 3;
+  google.protobuf.Timestamp created_at = 4;
+}
+
+message ListConsentHistoryResponse {
+  repeated ConsentEntry entries = 1;
 }

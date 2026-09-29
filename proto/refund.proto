@@ -3,8 +3,12 @@ syntax = "proto3";
 package refund.v1;
 
 service RefundService {
-  // Создание возврата
+  // Создание возврата (самообслуживание — только владелец платежа)
   rpc CreateRefund (CreateRefundRequest) returns (CreateRefundResponse);
+  // 2026-09-21: возврат, инициированный кассиром/админом — без проверки
+  // владения платежом (сотрудник оформляет возврат ЗА покупателя, а не от
+  // своего имени). actor_id — только для аудита/логов.
+  rpc CreateStaffRefund (CreateStaffRefundRequest) returns (CreateRefundResponse);
   // Обработка  (снятие брони) от платежной системы
   rpc ProcessRefundEvent (ProcessRefundEventRequest) returns (ProcessRefundEventResponse);
 }
@@ -12,6 +16,11 @@ service RefundService {
 message CreateRefundRequest {
     string booking_id = 1;
     string user_id = 2;
+}
+
+message CreateStaffRefundRequest {
+    string booking_id = 1;
+    string actor_id = 2;
 }
 
 message CreateRefundResponse {

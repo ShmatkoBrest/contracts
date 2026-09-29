@@ -1,0 +1,236 @@
+import { Observable } from "rxjs";
+export declare const protobufPackage = "news.v1";
+export interface MutationAck {
+    ok: boolean;
+}
+export interface NewsCategory {
+    id: string;
+    title: string;
+    slug: string;
+    /** Пусто — категория верхнего уровня. */
+    parentId: string;
+    /**
+     * NEWS | REFERENCE | PARTNERS — раздел публичной части, к которому
+     * относится ВСЯ категория целиком (и все её статьи). NEWS — обычная
+     * лента (/news); REFERENCE — справочный раздел с боковым деревом
+     * категорий (/help); PARTNERS — раздел для партнёров/организаторов
+     * (/partners). Заменяет прежний бинарный show_in_sidebar — категория
+     * живёт ровно в одном разделе, а не "и там, и там".
+     */
+    section: string;
+}
+export interface ListCategoriesRequest {
+    /**
+     * Пусто — все категории (админка). Задан — только категории этого
+     * раздела (публичные страницы /news, /help, /partners запрашивают
+     * каждая свой раздел).
+     */
+    section?: string | undefined;
+}
+export interface ListCategoriesResponse {
+    categories: NewsCategory[];
+}
+export interface CreateCategoryRequest {
+    title: string;
+    slug: string;
+    parentId?: string | undefined;
+    /** Пусто трактуется как NEWS. */
+    section?: string | undefined;
+}
+export interface UpdateCategoryRequest {
+    id: string;
+    title?: string | undefined;
+    slug?: string | undefined;
+    parentId?: string | undefined;
+    /**
+     * Явно вернуть категорию на верхний уровень (просто пустая строка в
+     * parent_id неотличима от "не менять" — тот же приём, что у
+     * clear_earn_percent/clear_event_id в других контрактах).
+     */
+    clearParentId: boolean;
+    section?: string | undefined;
+}
+export interface DeleteCategoryRequest {
+    id: string;
+}
+/** type: EVENT | EVENT_GROUP | PERFORMER | ORGANIZER */
+export interface NewsRelation {
+    type: string;
+    refId: string;
+}
+/** Обёртки для presence repeated-полей при обновлении (см. event.proto:PerformerIdList). */
+export interface StringList {
+    values: string[];
+}
+export interface RelationList {
+    values: NewsRelation[];
+}
+export interface ArticleListItem {
+    id: string;
+    title: string;
+    slug: string;
+    excerpt: string;
+    coverImage: string;
+    status: string;
+    /** ISO-строка; пусто = не задана */
+    publishedAt: string;
+    categoryId: string;
+    categorySlug: string;
+    categoryTitle: string;
+    /** ALL | PLATFORM | ORGANIZER — см. комментарий у ListArticlesRequest. */
+    scope: string;
+    /** Задан только при scope=ORGANIZER. */
+    organizerId: string;
+}
+export interface ArticleDetails {
+    id: string;
+    title: string;
+    slug: string;
+    excerpt: string;
+    body: string;
+    coverImage: string;
+    gallery: string[];
+    status: string;
+    publishedAt: string;
+    seoTitle: string;
+    seoDescription: string;
+    categoryId: string;
+    categorySlug: string;
+    categoryTitle: string;
+    relations: NewsRelation[];
+    createdAt: string;
+    updatedAt: string;
+    scope: string;
+    organizerId: string;
+}
+export interface ListArticlesRequest {
+    status?: string | undefined;
+    categorySlug?: string | undefined;
+    relationType?: string | undefined;
+    relationRefId?: string | undefined;
+    /** true — только опубликованные и с published_at <= now */
+    publicOnly: boolean;
+    /** 1-based; 0 = без пагинации */
+    page: number;
+    pageSize: number;
+    /**
+     * 2026-09-24: видимость по organizer_id тенанта (`ALL` — везде;
+     * `PLATFORM` — только на платформенном сайте; `ORGANIZER` — только у
+     * своего организатора). Резолвится на gateway из домена запроса (как у
+     * content.proto), пусто = платформенный сайт. Применяется ТОЛЬКО при
+     * public_only=true — используется публичной лентой/страницей новости.
+     */
+    viewerOrganizerId?: string | undefined;
+    /**
+     * Админский фильтр «только новости этого организатора» — ADMIN/EDITOR
+     * выбирают явно, ORGANIZER_ADMIN получает его принудительно на
+     * gateway. Применяется ТОЛЬКО при public_only=false; не путать с
+     * viewer_organizer_id (та — про видимость на паблике, эта — про то,
+     * что видно в самой админке).
+     */
+    adminOrganizerId?: string | undefined;
+    /**
+     * NEWS | REFERENCE | PARTNERS — фильтр по разделу категории статьи
+     * (см. NewsCategory.section). Публичные страницы /news, /help,
+     * /partners всегда передают свой раздел; админка — не передаёт (видит
+     * всё сразу).
+     */
+    section?: string | undefined;
+}
+export interface ListArticlesResponse {
+    items: ArticleListItem[];
+    total: number;
+}
+export interface GetArticleRequest {
+    id?: string | undefined;
+    slug?: string | undefined;
+    /** при true отдаём только если новость публично видна */
+    publicOnly: boolean;
+    /**
+     * См. ListArticlesRequest.viewer_organizer_id — та же семантика,
+     * применяется только при public_only=true.
+     */
+    viewerOrganizerId?: string | undefined;
+}
+export interface CreateArticleRequest {
+    title: string;
+    slug: string;
+    excerpt: string;
+    body: string;
+    coverImage?: string | undefined;
+    gallery: string[];
+    status: string;
+    publishedAt?: string | undefined;
+    seoTitle?: string | undefined;
+    seoDescription?: string | undefined;
+    categoryId: string;
+    relations: NewsRelation[];
+    /** ALL | PLATFORM | ORGANIZER; пусто трактуется как ALL. */
+    scope?: string | undefined;
+    /**
+     * Обязателен при scope=ORGANIZER, иначе игнорируется usecase'ом
+     * (см. комментарий в create-article.usecase.ts).
+     */
+    organizerId?: string | undefined;
+}
+export interface UpdateArticleRequest {
+    id: string;
+    title?: string | undefined;
+    slug?: string | undefined;
+    excerpt?: string | undefined;
+    body?: string | undefined;
+    coverImage?: string | undefined;
+    gallery: StringList | undefined;
+    status?: string | undefined;
+    publishedAt?: string | undefined;
+    seoTitle?: string | undefined;
+    seoDescription?: string | undefined;
+    categoryId?: string | undefined;
+    relations: RelationList | undefined;
+    scope?: string | undefined;
+    organizerId?: string | undefined;
+}
+export interface DeleteArticleRequest {
+    id: string;
+}
+export declare const NEWS_V1_PACKAGE_NAME = "news.v1";
+/**
+ * Сервис новостей платформы: категории новостей + сами новости.
+ * Новость может быть привязана к нескольким сущностям (событие, группа
+ * событий, исполнитель, организатор) — news-service хранит только тип и id,
+ * резолвит их gateway.
+ */
+export interface NewsServiceClient {
+    /** --- категории --- */
+    listCategories(request: ListCategoriesRequest): Observable<ListCategoriesResponse>;
+    createCategory(request: CreateCategoryRequest): Observable<NewsCategory>;
+    updateCategory(request: UpdateCategoryRequest): Observable<NewsCategory>;
+    deleteCategory(request: DeleteCategoryRequest): Observable<MutationAck>;
+    /** --- новости --- */
+    listArticles(request: ListArticlesRequest): Observable<ListArticlesResponse>;
+    getArticle(request: GetArticleRequest): Observable<ArticleDetails>;
+    createArticle(request: CreateArticleRequest): Observable<ArticleDetails>;
+    updateArticle(request: UpdateArticleRequest): Observable<ArticleDetails>;
+    deleteArticle(request: DeleteArticleRequest): Observable<MutationAck>;
+}
+/**
+ * Сервис новостей платформы: категории новостей + сами новости.
+ * Новость может быть привязана к нескольким сущностям (событие, группа
+ * событий, исполнитель, организатор) — news-service хранит только тип и id,
+ * резолвит их gateway.
+ */
+export interface NewsServiceController {
+    /** --- категории --- */
+    listCategories(request: ListCategoriesRequest): Promise<ListCategoriesResponse> | Observable<ListCategoriesResponse> | ListCategoriesResponse;
+    createCategory(request: CreateCategoryRequest): Promise<NewsCategory> | Observable<NewsCategory> | NewsCategory;
+    updateCategory(request: UpdateCategoryRequest): Promise<NewsCategory> | Observable<NewsCategory> | NewsCategory;
+    deleteCategory(request: DeleteCategoryRequest): Promise<MutationAck> | Observable<MutationAck> | MutationAck;
+    /** --- новости --- */
+    listArticles(request: ListArticlesRequest): Promise<ListArticlesResponse> | Observable<ListArticlesResponse> | ListArticlesResponse;
+    getArticle(request: GetArticleRequest): Promise<ArticleDetails> | Observable<ArticleDetails> | ArticleDetails;
+    createArticle(request: CreateArticleRequest): Promise<ArticleDetails> | Observable<ArticleDetails> | ArticleDetails;
+    updateArticle(request: UpdateArticleRequest): Promise<ArticleDetails> | Observable<ArticleDetails> | ArticleDetails;
+    deleteArticle(request: DeleteArticleRequest): Promise<MutationAck> | Observable<MutationAck> | MutationAck;
+}
+export declare function NewsServiceControllerMethods(): (constructor: Function) => void;
+export declare const NEWS_SERVICE_NAME = "NewsService";

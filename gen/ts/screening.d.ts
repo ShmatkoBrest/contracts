@@ -1,0 +1,266 @@
+import { Observable } from "rxjs";
+import { Timestamp } from "./google/protobuf/timestamp";
+export declare const protobufPackage = "screening.v1";
+export interface CreateScreeningRequest {
+    eventId: string;
+    /**
+     * Сеанс проводится на всей арене. Сектор покупатель/кассир выбирает
+     * при выборе мест (contracts 3.7.0 — раньше здесь был sector_id).
+     */
+    arenaId: string;
+    startAt: string;
+    endAt: string;
+}
+export interface CreateScreeningResponse {
+    ok: boolean;
+}
+export interface GetScreeningsRequest {
+    arenaId?: string | undefined;
+    date?: string | undefined;
+    /**
+     * 3.8.0: если задан — только сеансы, которые разрешено продавать этому
+     * кассиру (сеансы без назначенных кассиров разрешены всем).
+     */
+    cashierId?: string | undefined;
+    /**
+     * 3.21.0: конец диапазона дат (включительно), YYYY-MM-DD. Не задан —
+     * старое поведение (один день `date`). Задан без `date` — игнорируется
+     * (диапазон без начала не имеет смысла).
+     */
+    dateTo?: string | undefined;
+    /**
+     * 3.57.0: если задан — только сеансы, которые разрешено сканировать
+     * этому контролёру (deny-by-default — сеанс без назначенных
+     * контролёров не виден никому, независимо от этого фильтра).
+     */
+    scannerId?: string | undefined;
+    /** 3.58.0: то же самое, только для роли «охрана» (отдельное назначение). */
+    securityId?: string | undefined;
+}
+export interface GetScreeningsResponse {
+    screenings: Screening[];
+}
+export interface GetScreeningsByEventRequest {
+    eventId: string;
+    date?: string | undefined;
+}
+export interface GetScreeningsByEventResponse {
+    screenings: Screening[];
+}
+export interface GetScreeningRequest {
+    id: string;
+}
+export interface GetScreeningResponse {
+    screening: Screening | undefined;
+}
+export interface UpdateScreeningRequest {
+    id: string;
+    eventId?: string | undefined;
+    arenaId?: string | undefined;
+    startAt?: string | undefined;
+    endAt?: string | undefined;
+    /** 3.55.0 — кастомизация кнопки embed-виджета продажи (см. Screening ниже). */
+    widgetButtonBorderRadius?: string | undefined;
+    widgetButtonBorderColor?: string | undefined;
+    widgetButtonBackgroundColor?: string | undefined;
+    widgetButtonFontFamily?: string | undefined;
+    /** 3.56.0 */
+    widgetButtonTextColor?: string | undefined;
+}
+export interface UpdateScreeningResponse {
+    screening: Screening | undefined;
+}
+export interface DeleteScreeningRequest {
+    id: string;
+}
+export interface DeleteScreeningResponse {
+    ok: boolean;
+}
+export interface GetScreeningCashiersRequest {
+    screeningId: string;
+}
+export interface SetScreeningCashiersRequest {
+    screeningId: string;
+    /** id аккаунтов кассиров. Пустой список = сеанс открыт всем кассирам. */
+    cashierIds: string[];
+}
+export interface ScreeningCashiersResponse {
+    cashierIds: string[];
+}
+export interface CanCashierSellRequest {
+    cashierId: string;
+    screeningId: string;
+}
+export interface CanCashierSellResponse {
+    allowed: boolean;
+}
+export interface GetScreeningScannersRequest {
+    screeningId: string;
+}
+export interface SetScreeningScannersRequest {
+    screeningId: string;
+    /**
+     * id аккаунтов контролёров. Пустой список = сеанс недоступен ни
+     * одному контролёру (deny-by-default).
+     */
+    scannerIds: string[];
+}
+export interface ScreeningScannersResponse {
+    scannerIds: string[];
+}
+export interface CanScannerAccessRequest {
+    scannerId: string;
+    screeningId: string;
+}
+export interface CanScannerAccessResponse {
+    allowed: boolean;
+}
+export interface GetScreeningSecurityRequest {
+    screeningId: string;
+}
+export interface SetScreeningSecurityRequest {
+    screeningId: string;
+    /**
+     * id аккаунтов охраны. Пустой список = сеанс недоступен ни одному
+     * охраннику (deny-by-default).
+     */
+    securityIds: string[];
+}
+export interface ScreeningSecurityResponse {
+    securityIds: string[];
+}
+export interface CanSecurityAccessRequest {
+    securityId: string;
+    screeningId: string;
+}
+export interface CanSecurityAccessResponse {
+    allowed: boolean;
+}
+export interface Event {
+    id: string;
+    title: string;
+    slug: string;
+    poster: string;
+    ratingAge: number;
+    releaseDate: Timestamp | undefined;
+}
+export interface Screening {
+    id: string;
+    startAt: Timestamp | undefined;
+    endAt: Timestamp | undefined;
+    /**
+     * Сеанс на всей арене. Секторы и их места запрашиваются отдельно
+     * (sector.v1 ListSectorsByArena / seat.v1) при выборе мест.
+     */
+    arena: Arena | undefined;
+    event: Event | undefined;
+    /**
+     * 5 (Sector sector) и 7 (repeated SeatType seat_type) удалены в 3.7.0.
+     * 3.55.0 — конфигурация кнопки embed-виджета продажи билетов на этот
+     * сеанс (карточка сеанса → «Виджет»). Не задано — widget.js использует
+     * свои дефолты.
+     */
+    widgetButtonBorderRadius?: string | undefined;
+    widgetButtonBorderColor?: string | undefined;
+    widgetButtonBackgroundColor?: string | undefined;
+    widgetButtonFontFamily?: string | undefined;
+    /** 3.56.0 */
+    widgetButtonTextColor?: string | undefined;
+}
+export interface Arena {
+    id: string;
+    name: string;
+    address: string;
+    image: string;
+}
+export declare const SCREENING_V1_PACKAGE_NAME = "screening.v1";
+export interface ScreeningServiceClient {
+    /** Создание сеанса */
+    createScreening(request: CreateScreeningRequest): Observable<CreateScreeningResponse>;
+    /** Получение списка сеансов */
+    getScreenings(request: GetScreeningsRequest): Observable<GetScreeningsResponse>;
+    /** Получение сеансов по событию */
+    getScreeningsByEvent(request: GetScreeningsByEventRequest): Observable<GetScreeningsByEventResponse>;
+    /** Получение сеанса по id */
+    getScreening(request: GetScreeningRequest): Observable<GetScreeningResponse>;
+    /** Обновление сеанса */
+    updateScreening(request: UpdateScreeningRequest): Observable<UpdateScreeningResponse>;
+    /** Удаление сеанса */
+    deleteScreening(request: DeleteScreeningRequest): Observable<DeleteScreeningResponse>;
+    /**
+     * --- Права кассиров на продажу сеанса (3.8.0) ---
+     * Список id кассиров, которым разрешён этот сеанс. Пустой список = сеанс
+     * открыт всем кассирам (обратная совместимость).
+     */
+    getScreeningCashiers(request: GetScreeningCashiersRequest): Observable<ScreeningCashiersResponse>;
+    /** Заменить список разрешённых кассиров целиком. */
+    setScreeningCashiers(request: SetScreeningCashiersRequest): Observable<ScreeningCashiersResponse>;
+    /** Проверка: может ли кассир продавать этот сеанс (для booking-service). */
+    canCashierSell(request: CanCashierSellRequest): Observable<CanCashierSellResponse>;
+    /**
+     * --- Доступ контролёров к сканированию сеанса (3.57.0) ---
+     * Список id контролёров, которым разрешён этот сеанс. Пустой список =
+     * сеанс недоступен ни одному контролёру (deny-by-default, тот же
+     * принцип, что и у ScreeningCashier после 2026-09-16).
+     */
+    getScreeningScanners(request: GetScreeningScannersRequest): Observable<ScreeningScannersResponse>;
+    /** Заменить список разрешённых контролёров целиком. */
+    setScreeningScanners(request: SetScreeningScannersRequest): Observable<ScreeningScannersResponse>;
+    /** Проверка: может ли контролёр сканировать этот сеанс (для gateway-service). */
+    canScannerAccess(request: CanScannerAccessRequest): Observable<CanScannerAccessResponse>;
+    /**
+     * --- Доступ охраны к сканированию сеанса (3.58.0) ---
+     * Тот же deny-by-default принцип, что у ScreeningScanner — ОТДЕЛЬНОЕ
+     * назначение, не смешивается с контролёрами (роль другая, права шире:
+     * «выпустить» + аналитика прохода, см. gateway-service.scanner.controler.ts).
+     */
+    getScreeningSecurity(request: GetScreeningSecurityRequest): Observable<ScreeningSecurityResponse>;
+    setScreeningSecurity(request: SetScreeningSecurityRequest): Observable<ScreeningSecurityResponse>;
+    canSecurityAccess(request: CanSecurityAccessRequest): Observable<CanSecurityAccessResponse>;
+}
+export interface ScreeningServiceController {
+    /** Создание сеанса */
+    createScreening(request: CreateScreeningRequest): Promise<CreateScreeningResponse> | Observable<CreateScreeningResponse> | CreateScreeningResponse;
+    /** Получение списка сеансов */
+    getScreenings(request: GetScreeningsRequest): Promise<GetScreeningsResponse> | Observable<GetScreeningsResponse> | GetScreeningsResponse;
+    /** Получение сеансов по событию */
+    getScreeningsByEvent(request: GetScreeningsByEventRequest): Promise<GetScreeningsByEventResponse> | Observable<GetScreeningsByEventResponse> | GetScreeningsByEventResponse;
+    /** Получение сеанса по id */
+    getScreening(request: GetScreeningRequest): Promise<GetScreeningResponse> | Observable<GetScreeningResponse> | GetScreeningResponse;
+    /** Обновление сеанса */
+    updateScreening(request: UpdateScreeningRequest): Promise<UpdateScreeningResponse> | Observable<UpdateScreeningResponse> | UpdateScreeningResponse;
+    /** Удаление сеанса */
+    deleteScreening(request: DeleteScreeningRequest): Promise<DeleteScreeningResponse> | Observable<DeleteScreeningResponse> | DeleteScreeningResponse;
+    /**
+     * --- Права кассиров на продажу сеанса (3.8.0) ---
+     * Список id кассиров, которым разрешён этот сеанс. Пустой список = сеанс
+     * открыт всем кассирам (обратная совместимость).
+     */
+    getScreeningCashiers(request: GetScreeningCashiersRequest): Promise<ScreeningCashiersResponse> | Observable<ScreeningCashiersResponse> | ScreeningCashiersResponse;
+    /** Заменить список разрешённых кассиров целиком. */
+    setScreeningCashiers(request: SetScreeningCashiersRequest): Promise<ScreeningCashiersResponse> | Observable<ScreeningCashiersResponse> | ScreeningCashiersResponse;
+    /** Проверка: может ли кассир продавать этот сеанс (для booking-service). */
+    canCashierSell(request: CanCashierSellRequest): Promise<CanCashierSellResponse> | Observable<CanCashierSellResponse> | CanCashierSellResponse;
+    /**
+     * --- Доступ контролёров к сканированию сеанса (3.57.0) ---
+     * Список id контролёров, которым разрешён этот сеанс. Пустой список =
+     * сеанс недоступен ни одному контролёру (deny-by-default, тот же
+     * принцип, что и у ScreeningCashier после 2026-09-16).
+     */
+    getScreeningScanners(request: GetScreeningScannersRequest): Promise<ScreeningScannersResponse> | Observable<ScreeningScannersResponse> | ScreeningScannersResponse;
+    /** Заменить список разрешённых контролёров целиком. */
+    setScreeningScanners(request: SetScreeningScannersRequest): Promise<ScreeningScannersResponse> | Observable<ScreeningScannersResponse> | ScreeningScannersResponse;
+    /** Проверка: может ли контролёр сканировать этот сеанс (для gateway-service). */
+    canScannerAccess(request: CanScannerAccessRequest): Promise<CanScannerAccessResponse> | Observable<CanScannerAccessResponse> | CanScannerAccessResponse;
+    /**
+     * --- Доступ охраны к сканированию сеанса (3.58.0) ---
+     * Тот же deny-by-default принцип, что у ScreeningScanner — ОТДЕЛЬНОЕ
+     * назначение, не смешивается с контролёрами (роль другая, права шире:
+     * «выпустить» + аналитика прохода, см. gateway-service.scanner.controler.ts).
+     */
+    getScreeningSecurity(request: GetScreeningSecurityRequest): Promise<ScreeningSecurityResponse> | Observable<ScreeningSecurityResponse> | ScreeningSecurityResponse;
+    setScreeningSecurity(request: SetScreeningSecurityRequest): Promise<ScreeningSecurityResponse> | Observable<ScreeningSecurityResponse> | ScreeningSecurityResponse;
+    canSecurityAccess(request: CanSecurityAccessRequest): Promise<CanSecurityAccessResponse> | Observable<CanSecurityAccessResponse> | CanSecurityAccessResponse;
+}
+export declare function ScreeningServiceControllerMethods(): (constructor: Function) => void;
+export declare const SCREENING_SERVICE_NAME = "ScreeningService";

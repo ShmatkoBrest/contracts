@@ -2,15 +2,13 @@ syntax = "proto3";
 
 package news.v1;
 
-import "google/protobuf/empty.proto";
-
 // Сервис новостей платформы: категории новостей + сами новости.
 // Новость может быть привязана к нескольким сущностям (событие, группа
 // событий, исполнитель, организатор) — news-service хранит только тип и id,
 // резолвит их gateway.
 service NewsService {
     // --- категории ---
-    rpc ListCategories (google.protobuf.Empty) returns (ListCategoriesResponse);
+    rpc ListCategories (ListCategoriesRequest) returns (ListCategoriesResponse);
     rpc CreateCategory (CreateCategoryRequest) returns (NewsCategory);
     rpc UpdateCategory (UpdateCategoryRequest) returns (NewsCategory);
     rpc DeleteCategory (DeleteCategoryRequest) returns (MutationAck);
@@ -33,6 +31,22 @@ message NewsCategory {
     string id = 1;
     string title = 2;
     string slug = 3;
+    // Пусто — категория верхнего уровня.
+    string parent_id = 4;
+    // NEWS | REFERENCE | PARTNERS — раздел публичной части, к которому
+    // относится ВСЯ категория целиком (и все её статьи). NEWS — обычная
+    // лента (/news); REFERENCE — справочный раздел с боковым деревом
+    // категорий (/help); PARTNERS — раздел для партнёров/организаторов
+    // (/partners). Заменяет прежний бинарный show_in_sidebar — категория
+    // живёт ровно в одном разделе, а не "и там, и там".
+    string section = 5;
+}
+
+message ListCategoriesRequest {
+    // Пусто — все категории (админка). Задан — только категории этого
+    // раздела (публичные страницы /news, /help, /partners запрашивают
+    // каждая свой раздел).
+    optional string section = 1;
 }
 
 message ListCategoriesResponse {
@@ -42,12 +56,21 @@ message ListCategoriesResponse {
 message CreateCategoryRequest {
     string title = 1;
     string slug = 2;
+    optional string parent_id = 3;
+    // Пусто трактуется как NEWS.
+    optional string section = 4;
 }
 
 message UpdateCategoryRequest {
     string id = 1;
     optional string title = 2;
     optional string slug = 3;
+    optional string parent_id = 4;
+    // Явно вернуть категорию на верхний уровень (просто пустая строка в
+    // parent_id неотличима от "не менять" — тот же приём, что у
+    // clear_earn_percent/clear_event_id в других контрактах).
+    bool clear_parent_id = 5;
+    optional string section = 6;
 }
 
 message DeleteCategoryRequest {
@@ -83,6 +106,10 @@ message ArticleListItem {
     string category_id = 8;
     string category_slug = 9;
     string category_title = 10;
+    // ALL | PLATFORM | ORGANIZER — см. комментарий у ListArticlesRequest.
+    string scope = 11;
+    // Задан только при scope=ORGANIZER.
+    string organizer_id = 12;
 }
 
 message ArticleDetails {
@@ -103,6 +130,8 @@ message ArticleDetails {
     repeated NewsRelation relations = 15;
     string created_at = 16;
     string updated_at = 17;
+    string scope = 18;
+    string organizer_id = 19;
 }
 
 message ListArticlesRequest {
@@ -114,6 +143,23 @@ message ListArticlesRequest {
     bool public_only = 5;
     int32 page = 6;       // 1-based; 0 = без пагинации
     int32 page_size = 7;
+    // 2026-09-24: видимость по organizer_id тенанта (`ALL` — везде;
+    // `PLATFORM` — только на платформенном сайте; `ORGANIZER` — только у
+    // своего организатора). Резолвится на gateway из домена запроса (как у
+    // content.proto), пусто = платформенный сайт. Применяется ТОЛЬКО при
+    // public_only=true — используется публичной лентой/страницей новости.
+    optional string viewer_organizer_id = 8;
+    // Админский фильтр «только новости этого организатора» — ADMIN/EDITOR
+    // выбирают явно, ORGANIZER_ADMIN получает его принудительно на
+    // gateway. Применяется ТОЛЬКО при public_only=false; не путать с
+    // viewer_organizer_id (та — про видимость на паблике, эта — про то,
+    // что видно в самой админке).
+    optional string admin_organizer_id = 9;
+    // NEWS | REFERENCE | PARTNERS — фильтр по разделу категории статьи
+    // (см. NewsCategory.section). Публичные страницы /news, /help,
+    // /partners всегда передают свой раздел; админка — не передаёт (видит
+    // всё сразу).
+    optional string section = 10;
 }
 
 message ListArticlesResponse {
@@ -126,6 +172,9 @@ message GetArticleRequest {
     optional string slug = 2;
     // при true отдаём только если новость публично видна
     bool public_only = 3;
+    // См. ListArticlesRequest.viewer_organizer_id — та же семантика,
+    // применяется только при public_only=true.
+    optional string viewer_organizer_id = 4;
 }
 
 message CreateArticleRequest {
@@ -141,6 +190,11 @@ message CreateArticleRequest {
     optional string seo_description = 10;
     string category_id = 11;
     repeated NewsRelation relations = 12;
+    // ALL | PLATFORM | ORGANIZER; пусто трактуется как ALL.
+    optional string scope = 13;
+    // Обязателен при scope=ORGANIZER, иначе игнорируется usecase'ом
+    // (см. комментарий в create-article.usecase.ts).
+    optional string organizer_id = 14;
 }
 
 message UpdateArticleRequest {
@@ -157,6 +211,8 @@ message UpdateArticleRequest {
     optional string seo_description = 11;
     optional string category_id = 12;
     RelationList relations = 13;
+    optional string scope = 14;
+    optional string organizer_id = 15;
 }
 
 message DeleteArticleRequest {

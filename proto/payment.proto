@@ -160,11 +160,29 @@ message CreateGenericPaymentRequest {
   // без изменений (например, subscription_id, user_subscription_id) —
   // позволяет вызывающей стороне идентифицировать платёж на своей стороне.
   map<string, string> metadata = 6;
+  // 2026-09-21: организатор, чьими реквизитами мерчанта провести платёж
+  // (пусто — платформенный дефолт, тот же MerchantConfigResolver, что уже
+  // используют обычные билеты). Нужен, например, для перепродажи места по
+  // абонементу (subscription-service) — деньги должны прийти организатору
+  // сеанса, не платформе.
+  optional string organizer_id = 7;
 }
 
 message CreateGenericPaymentResponse {
   string payment_id = 1;
   string url = 2;
+}
+
+// 2026-09-21: второй платёжный провайдер (bePaid) — организатор выбирает
+// одну из двух систем для своих платежей. WEBPAY использует все 4 поля
+// реквизитов ниже как раньше (api_url/secret_key/store_id/webhook_secret);
+// BEPAID использует только store_id (= shop_id bePaid) и secret_key
+// (Basic Auth пара) — api_url игнорируется (у bePaid фиксированные домены
+// gateway.bepaid.by/checkout.bepaid.by), webhook_secret не нужен (подпись
+// не HMAC — см. PaymentProvider.getPaymentStatus/re-fetch-верификацию).
+enum PaymentProviderType {
+    WEBPAY = 0;
+    BEPAID = 1;
 }
 
 message SetMerchantAccountRequest {
@@ -178,6 +196,7 @@ message SetMerchantAccountRequest {
     // true — удалить реквизиты организатора (вернуться к платформенному
     // дефолту по умолчанию для его платежей).
     bool delete = 6;
+    PaymentProviderType provider = 7;
 }
 
 message SetMerchantAccountResponse {
@@ -196,4 +215,5 @@ message GetMerchantAccountResponse {
     string secret_key = 3;
     string store_id = 4;
     string webhook_secret = 5;
+    PaymentProviderType provider = 6;
 }

@@ -71,6 +71,8 @@ message CreateEventRequest {
     optional string event_group_id = 13;
     // 3.19.0: см. EventDetails.purchase_limit.
     optional int32 purchase_limit = 14;
+    // См. EventDetails.price_tier_colors.
+    repeated string price_tier_colors = 15;
 }
 
 // Обёртка нужна, чтобы отличить "поле не передано" (performer_ids не тронут
@@ -78,6 +80,13 @@ message CreateEventRequest {
 // исполнителей) — у repeated-полей в proto3 нет собственного presence.
 message PerformerIdList {
     repeated string ids = 1;
+}
+
+// Та же обёртка, что PerformerIdList — presence для repeated-поля в
+// UpdateEventRequest (undefined — не трогать палитру, [] — явный сброс на
+// дефолт фронта).
+message PriceTierColorsList {
+    repeated string colors = 1;
 }
 
 message UpdateEventRequest {
@@ -99,6 +108,7 @@ message UpdateEventRequest {
     // однозначно означало бы «без ограничения» (валидный кейс), а сам факт
     // presence уже различим через optional.
     optional int32 purchase_limit = 15;
+    PriceTierColorsList price_tier_colors = 16;
 }
 
 message DeleteEventRequest {
@@ -136,4 +146,25 @@ message EventDetails {
     // заказ (не накопительно за всё время) на сеансах этого события.
     // Не задан — без ограничения. Проверяет booking-service.
     optional int32 purchase_limit = 14;
+    // Палитра ценовых тиров карты стадиона (gateway/frontend, ArenaMap) —
+    // сектор с самой низкой базовой ценой на сеансах события → colors[0],
+    // следующий по цене → colors[1], и т.д. Пусто — фронт использует свою
+    // дефолтную палитру (открытый список hex-цветов, не enum — админ может
+    // задать любое число тиров).
+    repeated string price_tier_colors = 15;
+    // 3.59.0: категория события. Раньше её в ответе не было, и gateway
+    // дорезолвивал категорию, загружая в память ВЕСЬ каталог событий по всем
+    // категориям (loadCatalog) — на каждой странице события, с эффектом
+    // cache stampede при протухании. Категория у события и так есть в БД
+    // event-service, отдать её здесь дешевле на порядки.
+    optional EventCategory category = 16;
+}
+
+// Категория в ответе события. Намеренно НЕ импортируем category.v1.Category:
+// ни один proto платформы не импортирует другой (самодостаточные файлы), да
+// и потребителю здесь нужны только эти три поля для отображения.
+message EventCategory {
+    string id = 1;
+    string title = 2;
+    string slug = 3;
 }

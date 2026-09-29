@@ -1,0 +1,265 @@
+import { Observable } from "rxjs";
+export declare const protobufPackage = "payment.v1";
+/**
+ * 2026-09-21: второй платёжный провайдер (bePaid) — организатор выбирает
+ * одну из двух систем для своих платежей. WEBPAY использует все 4 поля
+ * реквизитов ниже как раньше (api_url/secret_key/store_id/webhook_secret);
+ * BEPAID использует только store_id (= shop_id bePaid) и secret_key
+ * (Basic Auth пара) — api_url игнорируется (у bePaid фиксированные домены
+ * gateway.bepaid.by/checkout.bepaid.by), webhook_secret не нужен (подпись
+ * не HMAC — см. PaymentProvider.getPaymentStatus/re-fetch-верификацию).
+ */
+export declare enum PaymentProviderType {
+    WEBPAY = 0,
+    BEPAID = 1,
+    UNRECOGNIZED = -1
+}
+export interface CreatePaymentRequest {
+    userId: string;
+    screeningId: string;
+    seats: SeatInput[];
+    paymentMethodId?: string | undefined;
+    savePaymentMethod: boolean;
+    /** Списать баллы лояльности на заказ (копейки, loyalty.v1). */
+    redeemPoints: number;
+    /**
+     * 3.19.0: GENERAL_ADMISSION-сектора (без карты мест) — количество вместо
+     * конкретных мест. Категория билета онлайн не выбирается (как и для
+     * seats) — вся бронь одной ценой/аудиторией.
+     */
+    ga: GaInput[];
+}
+export interface GaInput {
+    sectorId: string;
+    quantity: number;
+}
+export interface CreatePaymentResponse {
+    url: string;
+    /**
+     * id брони/заказа — фронт использует для опроса статуса после возврата
+     * от платёжного провайдера.
+     */
+    bookingId: string;
+}
+export interface GetPaymentByBookingRequest {
+    bookingId: string;
+    userId: string;
+}
+export interface PaymentStatus {
+    id: string;
+    bookingId: string;
+    amount: number;
+    /** pending | succeeded | canceled | failed */
+    status: string;
+    /** Ссылка на форму оплаты (актуальна, пока status = pending). */
+    url: string;
+}
+export interface ProcessPaymentEventRequest {
+    /** status */
+    event: string;
+    paymentId: string;
+    bookingId: string;
+    userId: string;
+    savePaymentMethod: boolean;
+    providerMethodId: string;
+    cardFirst6: string;
+    cardLast4: string;
+    bank: string;
+    brand: string;
+}
+export interface ProcessPaymentEventResponse {
+    ok: boolean;
+}
+export interface GetUserPaymentMethodsRequest {
+    userId: string;
+}
+export interface GetUserPaymentMethodsResponse {
+    methods: PaymentMethodItem[];
+}
+export interface CreatePaymentMethodRequest {
+    userId: string;
+}
+export interface CreatePaymentMethodResponse {
+    id: string;
+    url: string;
+}
+export interface VerifyPaymentMethodRequest {
+    userId: string;
+    methodId: string;
+}
+export interface VerifyPaymentMethodResponse {
+    ok: boolean;
+}
+export interface DeletePaymentMethodRequest {
+    userId: string;
+    methodId: string;
+}
+export interface DeletePaymentMethodResponse {
+    ok: boolean;
+}
+export interface PaymentMethodItem {
+    id: string;
+    bank: string;
+    brand: string;
+    first6: string;
+    last4: string;
+}
+export interface SeatInput {
+    seatId: string;
+}
+export interface CreateGenericPaymentRequest {
+    userId: string;
+    /**
+     * Сумма в минимальных единицах валюты (копейки/центы) — согласовано
+     * с платформенным соглашением (booking-service, payment-service сами
+     * хранят суммы как Int).
+     */
+    amount: number;
+    description: string;
+    returnUrl: string;
+    /**
+     * Вызывающая сторона указывает СВОЙ callback_url — платёжный провайдер
+     * шлёт вебхук туда напрямую, а не в payment-service.
+     */
+    callbackUrl: string;
+    /**
+     * Произвольные метаданные, которые платёжная система вернёт в вебхуке
+     * без изменений (например, subscription_id, user_subscription_id) —
+     * позволяет вызывающей стороне идентифицировать платёж на своей стороне.
+     */
+    metadata: {
+        [key: string]: string;
+    };
+    /**
+     * 2026-09-21: организатор, чьими реквизитами мерчанта провести платёж
+     * (пусто — платформенный дефолт, тот же MerchantConfigResolver, что уже
+     * используют обычные билеты). Нужен, например, для перепродажи места по
+     * абонементу (subscription-service) — деньги должны прийти организатору
+     * сеанса, не платформе.
+     */
+    organizerId?: string | undefined;
+}
+export interface CreateGenericPaymentRequest_MetadataEntry {
+    key: string;
+    value: string;
+}
+export interface CreateGenericPaymentResponse {
+    paymentId: string;
+    url: string;
+}
+export interface SetMerchantAccountRequest {
+    organizerId: string;
+    apiUrl: string;
+    secretKey: string;
+    storeId: string;
+    /**
+     * Пусто — подпись вебхука проверяется тем же secret_key (как и у
+     * платформенного дефолта); задан — отдельный секрет только для подписи.
+     */
+    webhookSecret: string;
+    /**
+     * true — удалить реквизиты организатора (вернуться к платформенному
+     * дефолту по умолчанию для его платежей).
+     */
+    delete: boolean;
+    provider: PaymentProviderType;
+}
+export interface SetMerchantAccountResponse {
+    ok: boolean;
+}
+export interface GetMerchantAccountRequest {
+    organizerId: string;
+}
+export interface GetMerchantAccountResponse {
+    /**
+     * false — своих реквизитов нет, платежи этого организатора идут через
+     * платформенный дефолт.
+     */
+    found: boolean;
+    apiUrl: string;
+    secretKey: string;
+    storeId: string;
+    webhookSecret: string;
+    provider: PaymentProviderType;
+}
+export declare const PAYMENT_V1_PACKAGE_NAME = "payment.v1";
+export interface PaymentServiceClient {
+    /** Создание платежа */
+    createPayment(request: CreatePaymentRequest): Observable<CreatePaymentResponse>;
+    /** Статус платежа по брони (для экрана /checkout/result — фронт поллит) */
+    getPaymentByBooking(request: GetPaymentByBookingRequest): Observable<PaymentStatus>;
+    /** Обработка  (начисление брони) от платежной системы */
+    processPaymentEvent(request: ProcessPaymentEventRequest): Observable<ProcessPaymentEventResponse>;
+    /**  */
+    getUserPaymentMethods(request: GetUserPaymentMethodsRequest): Observable<GetUserPaymentMethodsResponse>;
+    /**  */
+    createPaymentMethod(request: CreatePaymentMethodRequest): Observable<CreatePaymentMethodResponse>;
+    /**  */
+    verifyPaymentMethod(request: VerifyPaymentMethodRequest): Observable<VerifyPaymentMethodResponse>;
+    /**  */
+    deletePaymentMethod(request: DeletePaymentMethodRequest): Observable<DeletePaymentMethodResponse>;
+    /**
+     * Создание платежа общего назначения — без привязки к брони через
+     * booking-service (в отличие от CreatePayment). Используется сервисами,
+     * которым нужно просто списать сумму и получить ссылку на оплату —
+     * например, subscription-service при покупке абонемента.
+     *
+     * callback_url в запросе указывает вызывающая сторона — платёжный
+     * провайдер шлёт вебхук напрямую туда (не в payment-service), поэтому
+     * payment-service не обязан знать об исходе платежа и не должен
+     * звонить обратно в вызывающий сервис — это сознательное архитектурное
+     * решение, чтобы не заводить новый порт вроде SubscriptionPort здесь.
+     * payment-service отвечает только за инициацию платежа у провайдера.
+     */
+    createGenericPayment(request: CreateGenericPaymentRequest): Observable<CreateGenericPaymentResponse>;
+    /**
+     * 3.30.0: реквизиты мерчанта организатора ("коробочная" платформа — оплата
+     * за билеты события этого организатора идёт через ЕГО Webpay-аккаунт, не
+     * через платформенный по умолчанию). ADMIN. secret_key/webhook_secret —
+     * секреты, отдаются вызывающей стороне как есть (gateway-service обязан
+     * не пропускать их дальше публичных ответов — см. GATEWAY-SERVICE.md).
+     */
+    setMerchantAccount(request: SetMerchantAccountRequest): Observable<SetMerchantAccountResponse>;
+    getMerchantAccount(request: GetMerchantAccountRequest): Observable<GetMerchantAccountResponse>;
+}
+export interface PaymentServiceController {
+    /** Создание платежа */
+    createPayment(request: CreatePaymentRequest): Promise<CreatePaymentResponse> | Observable<CreatePaymentResponse> | CreatePaymentResponse;
+    /** Статус платежа по брони (для экрана /checkout/result — фронт поллит) */
+    getPaymentByBooking(request: GetPaymentByBookingRequest): Promise<PaymentStatus> | Observable<PaymentStatus> | PaymentStatus;
+    /** Обработка  (начисление брони) от платежной системы */
+    processPaymentEvent(request: ProcessPaymentEventRequest): Promise<ProcessPaymentEventResponse> | Observable<ProcessPaymentEventResponse> | ProcessPaymentEventResponse;
+    /**  */
+    getUserPaymentMethods(request: GetUserPaymentMethodsRequest): Promise<GetUserPaymentMethodsResponse> | Observable<GetUserPaymentMethodsResponse> | GetUserPaymentMethodsResponse;
+    /**  */
+    createPaymentMethod(request: CreatePaymentMethodRequest): Promise<CreatePaymentMethodResponse> | Observable<CreatePaymentMethodResponse> | CreatePaymentMethodResponse;
+    /**  */
+    verifyPaymentMethod(request: VerifyPaymentMethodRequest): Promise<VerifyPaymentMethodResponse> | Observable<VerifyPaymentMethodResponse> | VerifyPaymentMethodResponse;
+    /**  */
+    deletePaymentMethod(request: DeletePaymentMethodRequest): Promise<DeletePaymentMethodResponse> | Observable<DeletePaymentMethodResponse> | DeletePaymentMethodResponse;
+    /**
+     * Создание платежа общего назначения — без привязки к брони через
+     * booking-service (в отличие от CreatePayment). Используется сервисами,
+     * которым нужно просто списать сумму и получить ссылку на оплату —
+     * например, subscription-service при покупке абонемента.
+     *
+     * callback_url в запросе указывает вызывающая сторона — платёжный
+     * провайдер шлёт вебхук напрямую туда (не в payment-service), поэтому
+     * payment-service не обязан знать об исходе платежа и не должен
+     * звонить обратно в вызывающий сервис — это сознательное архитектурное
+     * решение, чтобы не заводить новый порт вроде SubscriptionPort здесь.
+     * payment-service отвечает только за инициацию платежа у провайдера.
+     */
+    createGenericPayment(request: CreateGenericPaymentRequest): Promise<CreateGenericPaymentResponse> | Observable<CreateGenericPaymentResponse> | CreateGenericPaymentResponse;
+    /**
+     * 3.30.0: реквизиты мерчанта организатора ("коробочная" платформа — оплата
+     * за билеты события этого организатора идёт через ЕГО Webpay-аккаунт, не
+     * через платформенный по умолчанию). ADMIN. secret_key/webhook_secret —
+     * секреты, отдаются вызывающей стороне как есть (gateway-service обязан
+     * не пропускать их дальше публичных ответов — см. GATEWAY-SERVICE.md).
+     */
+    setMerchantAccount(request: SetMerchantAccountRequest): Promise<SetMerchantAccountResponse> | Observable<SetMerchantAccountResponse> | SetMerchantAccountResponse;
+    getMerchantAccount(request: GetMerchantAccountRequest): Promise<GetMerchantAccountResponse> | Observable<GetMerchantAccountResponse> | GetMerchantAccountResponse;
+}
+export declare function PaymentServiceControllerMethods(): (constructor: Function) => void;
+export declare const PAYMENT_SERVICE_NAME = "PaymentService";

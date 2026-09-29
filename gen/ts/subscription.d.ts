@@ -1,0 +1,701 @@
+import { Observable } from "rxjs";
+import { Timestamp } from "./google/protobuf/timestamp";
+export declare const protobufPackage = "subscription.v1";
+export declare enum SubscriptionType {
+    FIXED_SEAT = 0,
+    GENERAL_ADMISSION = 1,
+    UNRECOGNIZED = -1
+}
+export declare enum SubscriptionStatus {
+    PENDING = 0,
+    ACTIVE = 1,
+    EXPIRED = 2,
+    BLOCKED = 3,
+    CANCELED = 4,
+    UNRECOGNIZED = -1
+}
+export declare enum SubscriptionReservationStatus {
+    RESERVED = 0,
+    RELEASED = 1,
+    FAILED = 2,
+    UNRECOGNIZED = -1
+}
+export declare enum RenewalCampaignStatus {
+    RC_DRAFT = 0,
+    RC_ACTIVE = 1,
+    RC_CLOSED = 2,
+    UNRECOGNIZED = -1
+}
+/**
+ * RL_ префикс — CANCELED/EXPIRED уже заняты SubscriptionStatus в этом же
+ * файле (proto3 enum-значения делят пространство имён на уровне файла).
+ */
+export declare enum ResaleListingStatus {
+    RL_LISTED = 0,
+    RL_PENDING_PAYMENT = 1,
+    RL_SOLD = 2,
+    RL_CANCELED = 3,
+    RL_EXPIRED = 4,
+    UNRECOGNIZED = -1
+}
+export interface CreateSubscriptionPlanRequest {
+    title: string;
+    description: string;
+    type: SubscriptionType;
+    price: number;
+    eventGroupIds: string[];
+    /**
+     * 3.41.0 — план только для внутреннего использования (пригласительные/
+     * касса), не показывается в публичной витрине. Отсутствие поля — false
+     * (обычный публичный план, как раньше).
+     */
+    hidden?: boolean | undefined;
+}
+export interface UpdateSubscriptionPlanRequest {
+    id: string;
+    title?: string | undefined;
+    description?: string | undefined;
+    price?: number | undefined;
+    active?: boolean | undefined;
+    /**
+     * Отсутствие поля — не трогать список групп; EventGroupIdList с пустым
+     * ids — явно очистить список (тот же приём, что PerformerIdList
+     * в event.proto).
+     */
+    eventGroupIds?: EventGroupIdList | undefined;
+    hidden?: boolean | undefined;
+}
+export interface EventGroupIdList {
+    ids: string[];
+}
+export interface DeleteSubscriptionPlanRequest {
+    id: string;
+}
+export interface GetSubscriptionPlanRequest {
+    id: string;
+}
+export interface ListSubscriptionPlansRequest {
+    activeOnly?: boolean | undefined;
+    /**
+     * Если задан — только планы, которые разрешено продавать этому кассиру
+     * (планы без назначенных кассиров открыты всем).
+     */
+    cashierId?: string | undefined;
+}
+export interface ListSubscriptionPlansResponse {
+    plans: SubscriptionPlan[];
+}
+export interface GetPlanCashiersRequest {
+    planId: string;
+}
+export interface SetPlanCashiersRequest {
+    planId: string;
+    /** id аккаунтов кассиров. Пустой список = план открыт всем кассирам. */
+    cashierIds: string[];
+}
+export interface PlanCashiersResponse {
+    cashierIds: string[];
+}
+export interface CanCashierSellPlanRequest {
+    cashierId: string;
+    planId: string;
+}
+export interface CanCashierSellPlanResponse {
+    allowed: boolean;
+}
+export interface SubscriptionPlan {
+    id: string;
+    title: string;
+    description: string;
+    type: SubscriptionType;
+    price: number;
+    active: boolean;
+    eventGroupIds: string[];
+    /**
+     * 3.13.0: id активной кампании продления, целью которой является этот план
+     * (пусто, если такой нет). Фронту — чтобы включить карту мест сезона.
+     */
+    renewalCampaignId: string;
+    /**
+     * 3.41.0 — план только для внутреннего использования, скрыт из публичной
+     * витрины (`SubscriptionsPage.tsx` фильтрует на клиенте). Кассе,
+     * пригласительным абонементам и кампаниям продления не мешает —
+     * `active`/`hidden` независимы друг от друга.
+     */
+    hidden: boolean;
+}
+export interface PurchaseSubscriptionRequest {
+    userId: string;
+    planId: string;
+    /**
+     * Одно место (обратная совместимость) — трактуется как один элемент seats,
+     * если seats пуст. Обязательны (одно из двух) для планов с type = FIXED_SEAT.
+     */
+    seatId?: string | undefined;
+    sectorId?: string | undefined;
+    /** 3.15.0: несколько мест — несколько отдельных подписок одним платежом. */
+    seats: SeatRef[];
+    /**
+     * 3.19.0: для GENERAL_ADMISSION — сколько подписок купить одним платежом
+     * (по аналогии с несколькими seats у FIXED_SEAT). Не задано/0 → 1.
+     * Игнорируется для FIXED_SEAT (там количество = len(seats)).
+     */
+    gaQuantity?: number | undefined;
+}
+export interface PurchaseSubscriptionResponse {
+    /** Первая созданная подписка (обратная совместимость). */
+    subscriptionId: string;
+    /** Ссылка на форму оплаты у провайдера — одна на все созданные подписки. */
+    url: string;
+    /** 3.15.0: все подписки, созданные этой покупкой. */
+    subscriptionIds: string[];
+}
+export interface CancelSubscriptionRequest {
+    id: string;
+    userId: string;
+}
+export interface GetUserSubscriptionsRequest {
+    userId: string;
+}
+export interface GetUserSubscriptionsResponse {
+    subscriptions: UserSubscription[];
+}
+export interface GetSubscriptionRequest {
+    id: string;
+}
+export interface UserSubscription {
+    id: string;
+    userId: string;
+    planId: string;
+    status: SubscriptionStatus;
+    validFrom?: Timestamp | undefined;
+    validTo?: Timestamp | undefined;
+    /**
+     * 3.15.0: закреплённые места (обычно одно — см. решение "несколько мест =
+     * несколько подписок"). Пусто для GENERAL_ADMISSION.
+     */
+    seats: SeatRef[];
+    /**
+     * 3.16.0: непусто только для кассовой продажи, ещё не привязанной ни к
+     * какому аккаунту (claimed_at не выставлен).
+     */
+    claimCode: string;
+}
+export interface CheckSubscriptionAccessRequest {
+    userId: string;
+    eventId: string;
+}
+export interface CheckSubscriptionAccessResponse {
+    hasAccess: boolean;
+    subscriptionId?: string | undefined;
+}
+export interface ReleaseSubscriptionSeatRequest {
+    subscriptionId: string;
+    screeningId: string;
+    userId: string;
+}
+export interface ListSubscriptionReservationsRequest {
+    subscriptionId: string;
+    userId: string;
+}
+export interface ListSubscriptionReservationsResponse {
+    reservations: SubscriptionReservation[];
+}
+export interface SubscriptionReservation {
+    id: string;
+    subscriptionId: string;
+    screeningId: string;
+    reservationId?: string | undefined;
+    status: SubscriptionReservationStatus;
+}
+export interface DeleteResponse {
+    ok: boolean;
+}
+export interface RenewalCampaign {
+    id: string;
+    fromPlanId: string;
+    toPlanId: string;
+    /** Длина окна приоритета в днях от started_at. */
+    priorityDays: number;
+    startedAt?: Timestamp | undefined;
+    status: RenewalCampaignStatus;
+    /** Скидка (0..100 %) для продления держателем абонемента from_plan. */
+    renewalDiscountPct: number;
+    /** Скидка (0..100 %) для любой покупки to_plan до early_bird_deadline. */
+    earlyBirdDiscountPct: number;
+    earlyBirdDeadline?: Timestamp | undefined;
+    /** Вычисляемые: "PRIORITY" | "OPEN" | "" (для DRAFT/CLOSED). */
+    phase: string;
+    priorityUntil?: Timestamp | undefined;
+}
+export interface RenewalCampaignIdRequest {
+    id: string;
+}
+export interface CreateRenewalCampaignRequest {
+    fromPlanId: string;
+    toPlanId: string;
+    priorityDays: number;
+    renewalDiscountPct: number;
+    earlyBirdDiscountPct: number;
+    earlyBirdDeadline?: Timestamp | undefined;
+}
+export interface UpdateRenewalCampaignRequest {
+    id: string;
+    priorityDays?: number | undefined;
+    renewalDiscountPct?: number | undefined;
+    earlyBirdDiscountPct?: number | undefined;
+    earlyBirdDeadline?: Timestamp | undefined;
+}
+export interface ListRenewalCampaignsRequest {
+    status?: RenewalCampaignStatus | undefined;
+}
+export interface ListRenewalCampaignsResponse {
+    campaigns: RenewalCampaign[];
+}
+export interface SeatRef {
+    seatId: string;
+    sectorId: string;
+    /**
+     * 3.17.0: скидка на конкретное место при кассовой продаже абонемента
+     * (0..100 %) — например, один держатель детский, другой полный тариф.
+     * Игнорируется вне CreateCashierSubscriptionSale (в PurchaseSubscription
+     * не читается).
+     */
+    discountPct?: number | undefined;
+}
+export interface RenewalOffer {
+    campaignId: string;
+    fromSubscriptionId: string;
+    toPlanId: string;
+    toPlanTitle: string;
+    /** Текущие места абонемента (строго свои — приоритет на продление). */
+    mySeats: SeatRef[];
+    phase: string;
+    priorityUntil?: Timestamp | undefined;
+    /** Цена продления «своё место» (с учётом скидки продления). */
+    priceKeep: number;
+    /** Базовая цена to_plan без скидок. */
+    basePrice: number;
+}
+export interface ListRenewalOffersRequest {
+    userId: string;
+}
+export interface ListRenewalOffersResponse {
+    offers: RenewalOffer[];
+}
+export interface RenewSubscriptionRequest {
+    userId: string;
+    fromSubscriptionId: string;
+    /**
+     * Пусто → продлить своё место. Иначе — другое место; в фазе PRIORITY
+     * должно быть доступно по карте мест сезона.
+     */
+    seatId?: string | undefined;
+    sectorId?: string | undefined;
+}
+export interface GetSeasonSeatMapRequest {
+    campaignId: string;
+    userId: string;
+    sectorId?: string | undefined;
+}
+export interface SeasonSeat {
+    seatId: string;
+    /** MINE | TAKEN | HELD */
+    status: string;
+    /**
+     * 3.17.0: непусто в GetPlanSeatMapResponse (карта занятости плана без
+     * фильтра по сектору — нужно знать, к какому сектору относится место, для
+     * подсчёта занято/свободно по секторам). Пусто в GetSeasonSeatMapResponse
+     * (там вызывающая сторона уже знает sector_id — сама его передала).
+     */
+    sectorId: string;
+    /**
+     * 2026-09-18: только в GetPlanSeatMapResponse — место закреплено за
+     * пригласительным абонементом (amount = 0), а не купленным. Для раскраски
+     * карты мест пригласительных абонементов на фронте.
+     */
+    isComp: boolean;
+}
+export interface GetSeasonSeatMapResponse {
+    phase: string;
+    /**
+     * Только места со статусом; остальные фронт трактует как свободные (OPEN)
+     * либо недоступные (PRIORITY).
+     */
+    seats: SeasonSeat[];
+}
+export interface ReleaseSeasonSeatRequest {
+    userId: string;
+    fromSubscriptionId: string;
+}
+export interface GetPlanSeatMapRequest {
+    planId: string;
+    sectorId?: string | undefined;
+}
+export interface GetPlanSeatMapResponse {
+    /** Только занятые места (status всегда "TAKEN"); остальные — свободны. */
+    seats: SeasonSeat[];
+}
+export interface GetSubscriptionHeldSeatsRequest {
+    screeningId: string;
+    sectorId?: string | undefined;
+}
+export interface SubscriptionHeldSeat {
+    seatId: string;
+    sectorId: string;
+    /** Место закреплено за подпиской на скрытый (технический) план. */
+    hidden: boolean;
+}
+export interface GetSubscriptionHeldSeatsResponse {
+    seats: SubscriptionHeldSeat[];
+}
+export interface CreateCashierSubscriptionSaleRequest {
+    cashierId: string;
+    /**
+     * Если известен — продажа сразу атрибутируется этому аккаунту (без кода
+     * привязки). Не собирается текущим кассовым UI — заполняется только при
+     * прямом вызове API.
+     */
+    customerId?: string | undefined;
+    planId: string;
+    /**
+     * Пусто для GENERAL_ADMISSION (одна подписка без места). discount_pct
+     * каждого SeatRef — скидка именно на это место (0..100 %).
+     */
+    seats: SeatRef[];
+    /** cash | terminal. */
+    paymentType: string;
+    /**
+     * Непрозрачная ссылка на открытую смену кассира в booking-service —
+     * резолвится и передаётся gateway, subscription-service её не проверяет.
+     */
+    shiftId: string;
+    /**
+     * 3.17.0: скидка для GENERAL_ADMISSION-плана (там нет seats, поэтому
+     * discount_pct самого SeatRef неприменим). Игнорируется для FIXED_SEAT.
+     * 3.19.0: устарело в пользу `ga` (несколько категорий за одну продажу) —
+     * читается только как фолбэк (одна группа, quantity=1), если `ga` пуст.
+     */
+    discountPct?: number | undefined;
+    /**
+     * 3.19.0: для GENERAL_ADMISSION — количество абонементов и разбивка по
+     * категориям в одной продаже (например, 2 полных + 1 детский), вместо
+     * одного discount_pct на одну подписку. Игнорируется для FIXED_SEAT.
+     */
+    ga: SubscriptionGaInput[];
+}
+export interface SubscriptionGaInput {
+    quantity: number;
+    discountPct?: number | undefined;
+}
+export interface CashierSubscriptionSaleItem {
+    subscriptionId: string;
+    /** Пусто, если продажа сразу атрибутирована customer_id (привязывать нечего). */
+    claimCode: string;
+    /**
+     * 3.17.0: фактическая цена именно этого места после скидки кассира
+     * (и, если применимо, скидки кампании продления) — места одной продажи
+     * могут стоить по-разному.
+     */
+    amount: number;
+}
+export interface CreateCashierSubscriptionSaleResponse {
+    items: CashierSubscriptionSaleItem[];
+    /** Сумма продажи целиком (за все места). */
+    amount: number;
+}
+export interface ClaimSubscriptionRequest {
+    userId: string;
+    code: string;
+}
+export interface IssueComplimentarySubscriptionRequest {
+    planId: string;
+    /**
+     * Места для FIXED_SEAT-плана (по одному абонементу на место); пусто
+     * для GENERAL_ADMISSION.
+     */
+    seats: SeatRef[];
+    issuedBy: string;
+    note?: string | undefined;
+    /**
+     * 3.23.0: для GENERAL_ADMISSION — сколько выдать одним вызовом
+     * (аналог quantity у пригласительных GA-билетов). Не задано — 1.
+     * Игнорируется для FIXED_SEAT (там количество = len(seats)).
+     */
+    gaQuantity?: number | undefined;
+}
+export interface IssueComplimentarySubscriptionResponse {
+    /**
+     * Переиспользует существующее сообщение кассовой продажи — та же форма
+     * (subscription_id, claim_code, amount — здесь всегда 0).
+     */
+    items: CashierSubscriptionSaleItem[];
+}
+/**
+ * subscription-service не резолвит геометрию мест (row/number/sectorName) —
+ * этим занимается только arena-service, и только фронтенд сейчас держит
+ * прямую связь с ним при выдаче (та же карта мест, что уже отрисована на
+ * экране пригласительных). Поэтому, в отличие от EmailOrder у билетов (где
+ * booking-service сам знает всё по orderId), сюда передаётся уже готовый
+ * список строк письма — то же самое, что админ только что увидел на экране
+ * после выдачи.
+ */
+export interface SubscriptionCompClaimItem {
+    planTitle: string;
+    sectorName?: string | undefined;
+    row?: number | undefined;
+    number?: number | undefined;
+    claimCode: string;
+}
+export interface EmailComplimentarySubscriptionRequest {
+    email: string;
+    items: SubscriptionCompClaimItem[];
+}
+export interface EmailComplimentarySubscriptionResponse {
+    ok: boolean;
+}
+export interface ListCashierSubscriptionSalesRequest {
+    shiftId: string;
+}
+export interface CashierSubscriptionSaleRow {
+    subscriptionId: string;
+    planId: string;
+    planTitle: string;
+    amount: number;
+    paymentType: string;
+    soldAt: Timestamp | undefined;
+}
+export interface ListCashierSubscriptionSalesResponse {
+    rows: CashierSubscriptionSaleRow[];
+}
+/**
+ * Без идентичности продавца — то же сообщение отдаёт и публичный
+ * ListResaleListings (карта мест сеанса), и приватный ListMyResaleListings
+ * (продавцу и так известно, что это его листинг).
+ */
+export interface ResaleListing {
+    id: string;
+    reservationId: string;
+    subscriptionId: string;
+    screeningId: string;
+    sectorId: string;
+    seatId: string;
+    /**
+     * Цена в копейках, назначена продавцом — не обязана совпадать с
+     * ценой сектора у pricing-service.
+     */
+    price: number;
+    status: ResaleListingStatus;
+    createdAt: Timestamp | undefined;
+}
+export interface CreateResaleListingRequest {
+    subscriptionId: string;
+    screeningId: string;
+    userId: string;
+    price: number;
+}
+export interface CancelResaleListingRequest {
+    listingId: string;
+    userId: string;
+}
+export interface ListMyResaleListingsRequest {
+    userId: string;
+}
+export interface ListResaleListingsRequest {
+    screeningId: string;
+    sectorId?: string | undefined;
+}
+export interface ListResaleListingsResponse {
+    listings: ResaleListing[];
+}
+export interface BuyResaleListingRequest {
+    listingId: string;
+    buyerUserId: string;
+}
+export interface BuyResaleListingResponse {
+    url: string;
+    paymentId: string;
+}
+export declare const SUBSCRIPTION_V1_PACKAGE_NAME = "subscription.v1";
+export interface SubscriptionServiceClient {
+    /** Планы абонементов */
+    createSubscriptionPlan(request: CreateSubscriptionPlanRequest): Observable<SubscriptionPlan>;
+    updateSubscriptionPlan(request: UpdateSubscriptionPlanRequest): Observable<SubscriptionPlan>;
+    deleteSubscriptionPlan(request: DeleteSubscriptionPlanRequest): Observable<DeleteResponse>;
+    getSubscriptionPlan(request: GetSubscriptionPlanRequest): Observable<SubscriptionPlan>;
+    listSubscriptionPlans(request: ListSubscriptionPlansRequest): Observable<ListSubscriptionPlansResponse>;
+    /** Абонементы пользователей */
+    purchaseSubscription(request: PurchaseSubscriptionRequest): Observable<PurchaseSubscriptionResponse>;
+    cancelSubscription(request: CancelSubscriptionRequest): Observable<UserSubscription>;
+    getUserSubscriptions(request: GetUserSubscriptionsRequest): Observable<GetUserSubscriptionsResponse>;
+    getSubscription(request: GetSubscriptionRequest): Observable<UserSubscription>;
+    /** Доступ */
+    checkSubscriptionAccess(request: CheckSubscriptionAccessRequest): Observable<CheckSubscriptionAccessResponse>;
+    /** Бронирования по абонементам */
+    releaseSubscriptionSeat(request: ReleaseSubscriptionSeatRequest): Observable<DeleteResponse>;
+    listSubscriptionReservations(request: ListSubscriptionReservationsRequest): Observable<ListSubscriptionReservationsResponse>;
+    /**
+     * ===== 3.13.0: продление абонементов на новый сезон =====
+     * Кампании продления (админ)
+     */
+    createRenewalCampaign(request: CreateRenewalCampaignRequest): Observable<RenewalCampaign>;
+    updateRenewalCampaign(request: UpdateRenewalCampaignRequest): Observable<RenewalCampaign>;
+    startRenewalCampaign(request: RenewalCampaignIdRequest): Observable<RenewalCampaign>;
+    closeRenewalCampaign(request: RenewalCampaignIdRequest): Observable<RenewalCampaign>;
+    listRenewalCampaigns(request: ListRenewalCampaignsRequest): Observable<ListRenewalCampaignsResponse>;
+    /** Продление (пользователь) */
+    listRenewalOffers(request: ListRenewalOffersRequest): Observable<ListRenewalOffersResponse>;
+    renewSubscription(request: RenewSubscriptionRequest): Observable<PurchaseSubscriptionResponse>;
+    getSeasonSeatMap(request: GetSeasonSeatMapRequest): Observable<GetSeasonSeatMapResponse>;
+    releaseSeasonSeat(request: ReleaseSeasonSeatRequest): Observable<DeleteResponse>;
+    /**
+     * 3.15.0: занятость мест плана вне кампании продления (для отображения при
+     * прямой покупке и для защиты от повторной продажи одного места).
+     */
+    getPlanSeatMap(request: GetPlanSeatMapRequest): Observable<GetPlanSeatMapResponse>;
+    /**
+     * 2026-09-18: места сеанса, занятые авто-бронью действующих абонементов
+     * (для раскраски карты мест пригласительных билетов — «бронь абонементов»
+     * vs «технические места», см. SubscriptionPlan.hidden).
+     */
+    getSubscriptionHeldSeats(request: GetSubscriptionHeldSeatsRequest): Observable<GetSubscriptionHeldSeatsResponse>;
+    /**
+     * 3.16.0: продажа абонемента кассиром (наличные/терминал, без шлюза) + привязка
+     * офлайн-купленного абонемента в личном кабинете по коду.
+     */
+    createCashierSubscriptionSale(request: CreateCashierSubscriptionSaleRequest): Observable<CreateCashierSubscriptionSaleResponse>;
+    claimSubscription(request: ClaimSubscriptionRequest): Observable<UserSubscription>;
+    listCashierSubscriptionSales(request: ListCashierSubscriptionSalesRequest): Observable<ListCashierSubscriptionSalesResponse>;
+    /**
+     * 3.23.0: пригласительные абонементы (0 ₽, без оплаты) — тот же раздел
+     * админки, что и пригласительные билеты. Как и кассовая продажа —
+     * выдаёт код привязки (получатель не известен системе заранее).
+     */
+    issueComplimentarySubscription(request: IssueComplimentarySubscriptionRequest): Observable<IssueComplimentarySubscriptionResponse>;
+    /**
+     * 2026-09-18: отправить код(ы) привязки только что выданных
+     * пригласительных абонементов на e-mail получателя (тот же приём, что
+     * и «отправить билеты на e-mail» у пригласительных на сеанс).
+     */
+    emailComplimentarySubscription(request: EmailComplimentarySubscriptionRequest): Observable<EmailComplimentarySubscriptionResponse>;
+    /**
+     * --- Права кассиров на продажу плана (тот же паттерн, что у сеансов
+     * в screening.proto, screening.v1) ---
+     */
+    getPlanCashiers(request: GetPlanCashiersRequest): Observable<PlanCashiersResponse>;
+    setPlanCashiers(request: SetPlanCashiersRequest): Observable<PlanCashiersResponse>;
+    canCashierSellPlan(request: CanCashierSellPlanRequest): Observable<CanCashierSellPlanResponse>;
+    /**
+     * ===== 2026-09-21: перепродажа места по абонементу =====
+     * Держатель FIXED_SEAT-абонемента, не идущий на конкретный матч,
+     * выставляет своё место на продажу за цену N. Продавец получает баллы
+     * лояльности (не деньги), покупатель платит обычным платежом. Абонемент
+     * становится недоступен только для ЭТОГО сеанса (SubscriptionReservation
+     * → RELEASED), остальные матчи не затронуты.
+     */
+    createResaleListing(request: CreateResaleListingRequest): Observable<ResaleListing>;
+    cancelResaleListing(request: CancelResaleListingRequest): Observable<DeleteResponse>;
+    listMyResaleListings(request: ListMyResaleListingsRequest): Observable<ListResaleListingsResponse>;
+    /**
+     * Начать оплату листинга — создаёт платёж (payment.CreateGenericPayment)
+     * и переводит листинг в PENDING_PAYMENT.
+     */
+    buyResaleListing(request: BuyResaleListingRequest): Observable<BuyResaleListingResponse>;
+    /**
+     * Публичный список мест на перепродажу — для раскраски карты мест сеанса
+     * (только status=LISTED, без идентичности продавца).
+     */
+    listResaleListings(request: ListResaleListingsRequest): Observable<ListResaleListingsResponse>;
+}
+export interface SubscriptionServiceController {
+    /** Планы абонементов */
+    createSubscriptionPlan(request: CreateSubscriptionPlanRequest): Promise<SubscriptionPlan> | Observable<SubscriptionPlan> | SubscriptionPlan;
+    updateSubscriptionPlan(request: UpdateSubscriptionPlanRequest): Promise<SubscriptionPlan> | Observable<SubscriptionPlan> | SubscriptionPlan;
+    deleteSubscriptionPlan(request: DeleteSubscriptionPlanRequest): Promise<DeleteResponse> | Observable<DeleteResponse> | DeleteResponse;
+    getSubscriptionPlan(request: GetSubscriptionPlanRequest): Promise<SubscriptionPlan> | Observable<SubscriptionPlan> | SubscriptionPlan;
+    listSubscriptionPlans(request: ListSubscriptionPlansRequest): Promise<ListSubscriptionPlansResponse> | Observable<ListSubscriptionPlansResponse> | ListSubscriptionPlansResponse;
+    /** Абонементы пользователей */
+    purchaseSubscription(request: PurchaseSubscriptionRequest): Promise<PurchaseSubscriptionResponse> | Observable<PurchaseSubscriptionResponse> | PurchaseSubscriptionResponse;
+    cancelSubscription(request: CancelSubscriptionRequest): Promise<UserSubscription> | Observable<UserSubscription> | UserSubscription;
+    getUserSubscriptions(request: GetUserSubscriptionsRequest): Promise<GetUserSubscriptionsResponse> | Observable<GetUserSubscriptionsResponse> | GetUserSubscriptionsResponse;
+    getSubscription(request: GetSubscriptionRequest): Promise<UserSubscription> | Observable<UserSubscription> | UserSubscription;
+    /** Доступ */
+    checkSubscriptionAccess(request: CheckSubscriptionAccessRequest): Promise<CheckSubscriptionAccessResponse> | Observable<CheckSubscriptionAccessResponse> | CheckSubscriptionAccessResponse;
+    /** Бронирования по абонементам */
+    releaseSubscriptionSeat(request: ReleaseSubscriptionSeatRequest): Promise<DeleteResponse> | Observable<DeleteResponse> | DeleteResponse;
+    listSubscriptionReservations(request: ListSubscriptionReservationsRequest): Promise<ListSubscriptionReservationsResponse> | Observable<ListSubscriptionReservationsResponse> | ListSubscriptionReservationsResponse;
+    /**
+     * ===== 3.13.0: продление абонементов на новый сезон =====
+     * Кампании продления (админ)
+     */
+    createRenewalCampaign(request: CreateRenewalCampaignRequest): Promise<RenewalCampaign> | Observable<RenewalCampaign> | RenewalCampaign;
+    updateRenewalCampaign(request: UpdateRenewalCampaignRequest): Promise<RenewalCampaign> | Observable<RenewalCampaign> | RenewalCampaign;
+    startRenewalCampaign(request: RenewalCampaignIdRequest): Promise<RenewalCampaign> | Observable<RenewalCampaign> | RenewalCampaign;
+    closeRenewalCampaign(request: RenewalCampaignIdRequest): Promise<RenewalCampaign> | Observable<RenewalCampaign> | RenewalCampaign;
+    listRenewalCampaigns(request: ListRenewalCampaignsRequest): Promise<ListRenewalCampaignsResponse> | Observable<ListRenewalCampaignsResponse> | ListRenewalCampaignsResponse;
+    /** Продление (пользователь) */
+    listRenewalOffers(request: ListRenewalOffersRequest): Promise<ListRenewalOffersResponse> | Observable<ListRenewalOffersResponse> | ListRenewalOffersResponse;
+    renewSubscription(request: RenewSubscriptionRequest): Promise<PurchaseSubscriptionResponse> | Observable<PurchaseSubscriptionResponse> | PurchaseSubscriptionResponse;
+    getSeasonSeatMap(request: GetSeasonSeatMapRequest): Promise<GetSeasonSeatMapResponse> | Observable<GetSeasonSeatMapResponse> | GetSeasonSeatMapResponse;
+    releaseSeasonSeat(request: ReleaseSeasonSeatRequest): Promise<DeleteResponse> | Observable<DeleteResponse> | DeleteResponse;
+    /**
+     * 3.15.0: занятость мест плана вне кампании продления (для отображения при
+     * прямой покупке и для защиты от повторной продажи одного места).
+     */
+    getPlanSeatMap(request: GetPlanSeatMapRequest): Promise<GetPlanSeatMapResponse> | Observable<GetPlanSeatMapResponse> | GetPlanSeatMapResponse;
+    /**
+     * 2026-09-18: места сеанса, занятые авто-бронью действующих абонементов
+     * (для раскраски карты мест пригласительных билетов — «бронь абонементов»
+     * vs «технические места», см. SubscriptionPlan.hidden).
+     */
+    getSubscriptionHeldSeats(request: GetSubscriptionHeldSeatsRequest): Promise<GetSubscriptionHeldSeatsResponse> | Observable<GetSubscriptionHeldSeatsResponse> | GetSubscriptionHeldSeatsResponse;
+    /**
+     * 3.16.0: продажа абонемента кассиром (наличные/терминал, без шлюза) + привязка
+     * офлайн-купленного абонемента в личном кабинете по коду.
+     */
+    createCashierSubscriptionSale(request: CreateCashierSubscriptionSaleRequest): Promise<CreateCashierSubscriptionSaleResponse> | Observable<CreateCashierSubscriptionSaleResponse> | CreateCashierSubscriptionSaleResponse;
+    claimSubscription(request: ClaimSubscriptionRequest): Promise<UserSubscription> | Observable<UserSubscription> | UserSubscription;
+    listCashierSubscriptionSales(request: ListCashierSubscriptionSalesRequest): Promise<ListCashierSubscriptionSalesResponse> | Observable<ListCashierSubscriptionSalesResponse> | ListCashierSubscriptionSalesResponse;
+    /**
+     * 3.23.0: пригласительные абонементы (0 ₽, без оплаты) — тот же раздел
+     * админки, что и пригласительные билеты. Как и кассовая продажа —
+     * выдаёт код привязки (получатель не известен системе заранее).
+     */
+    issueComplimentarySubscription(request: IssueComplimentarySubscriptionRequest): Promise<IssueComplimentarySubscriptionResponse> | Observable<IssueComplimentarySubscriptionResponse> | IssueComplimentarySubscriptionResponse;
+    /**
+     * 2026-09-18: отправить код(ы) привязки только что выданных
+     * пригласительных абонементов на e-mail получателя (тот же приём, что
+     * и «отправить билеты на e-mail» у пригласительных на сеанс).
+     */
+    emailComplimentarySubscription(request: EmailComplimentarySubscriptionRequest): Promise<EmailComplimentarySubscriptionResponse> | Observable<EmailComplimentarySubscriptionResponse> | EmailComplimentarySubscriptionResponse;
+    /**
+     * --- Права кассиров на продажу плана (тот же паттерн, что у сеансов
+     * в screening.proto, screening.v1) ---
+     */
+    getPlanCashiers(request: GetPlanCashiersRequest): Promise<PlanCashiersResponse> | Observable<PlanCashiersResponse> | PlanCashiersResponse;
+    setPlanCashiers(request: SetPlanCashiersRequest): Promise<PlanCashiersResponse> | Observable<PlanCashiersResponse> | PlanCashiersResponse;
+    canCashierSellPlan(request: CanCashierSellPlanRequest): Promise<CanCashierSellPlanResponse> | Observable<CanCashierSellPlanResponse> | CanCashierSellPlanResponse;
+    /**
+     * ===== 2026-09-21: перепродажа места по абонементу =====
+     * Держатель FIXED_SEAT-абонемента, не идущий на конкретный матч,
+     * выставляет своё место на продажу за цену N. Продавец получает баллы
+     * лояльности (не деньги), покупатель платит обычным платежом. Абонемент
+     * становится недоступен только для ЭТОГО сеанса (SubscriptionReservation
+     * → RELEASED), остальные матчи не затронуты.
+     */
+    createResaleListing(request: CreateResaleListingRequest): Promise<ResaleListing> | Observable<ResaleListing> | ResaleListing;
+    cancelResaleListing(request: CancelResaleListingRequest): Promise<DeleteResponse> | Observable<DeleteResponse> | DeleteResponse;
+    listMyResaleListings(request: ListMyResaleListingsRequest): Promise<ListResaleListingsResponse> | Observable<ListResaleListingsResponse> | ListResaleListingsResponse;
+    /**
+     * Начать оплату листинга — создаёт платёж (payment.CreateGenericPayment)
+     * и переводит листинг в PENDING_PAYMENT.
+     */
+    buyResaleListing(request: BuyResaleListingRequest): Promise<BuyResaleListingResponse> | Observable<BuyResaleListingResponse> | BuyResaleListingResponse;
+    /**
+     * Публичный список мест на перепродажу — для раскраски карты мест сеанса
+     * (только status=LISTED, без идентичности продавца).
+     */
+    listResaleListings(request: ListResaleListingsRequest): Promise<ListResaleListingsResponse> | Observable<ListResaleListingsResponse> | ListResaleListingsResponse;
+}
+export declare function SubscriptionServiceControllerMethods(): (constructor: Function) => void;
+export declare const SUBSCRIPTION_SERVICE_NAME = "SubscriptionService";

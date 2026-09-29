@@ -23,12 +23,16 @@ service CategoryService {
 message CreateCategoryRequest {
     string title = 1;
     string slug = 2;
+    // 3.36.0: у событий этой категории — ровно один сеанс (например, футбольный/
+    // хоккейный матч) — гейтит инлайн-создание сеанса прямо в форме события.
+    bool single_screening = 3;
 }
 
 message UpdateCategoryRequest {
     string id = 1;
     string title = 2;
     string slug = 3;
+    bool single_screening = 4;
 }
 
 message DeleteCategoryRequest {
@@ -48,4 +52,5 @@ message Category {
     string id = 1;
     string title = 2;
     string slug = 3;
+    bool single_screening = 4;
 }

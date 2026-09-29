@@ -15,8 +15,17 @@ service BookingService {
     rpc ConfirmBooking (ConfirmBookingRequest) returns (ConfirmBookingResponse);
     // отмена брони (при возврате платежа)
     rpc CancelBooking (CancelBookingRequest) returns (CancelBookingResponse);
+    // 2026-09-22: можно ли ещё вернуть этот заказ (правило "не в день
+    // мероприятия и не позже") — payment-service спрашивает ДО обращения к
+    // платёжному провайдеру, чтобы не разрешать возврат просроченных билетов.
+    rpc GetOrderRefundEligibility (GetOrderRefundEligibilityRequest) returns (GetOrderRefundEligibilityResponse);
     // получение занятых мест
     rpc ListReservedSeats (ListReservedSeatsRequest) returns (ListReservedSeatsResponse);
+    // 2026-09-18: места сектора, занятые пригласительными билетами (Order.kind
+    // = COMP) на этот сеанс — для раскраски карты мест на странице
+    // пригласительных (отдельно от «занято» вообще, тот же формат сообщений,
+    // что у ListReservedSeats).
+    rpc ListCompSeatIds (ListReservedSeatsRequest) returns (ListReservedSeatsResponse);
     // 3.19.0: сколько GENERAL_ADMISSION-билетов уже продано/держится брони
     // в секторе без нумерации мест на этот сеанс (для остатка вместимости —
     // capacity сектора знает только arena-service, а не booking).
@@ -54,6 +63,16 @@ service BookingService {
     // Аннулировать заказ: место освобождается, билеты → VOIDED, запись в журнал.
     // Идемпотентно. Деньги покупателю НЕ возвращаются (это отдельная операция).
     rpc VoidOrder (VoidOrderRequest) returns (VoidOrderResponse);
+    // 2026-09-21: атомарная передача мест заказа другому пользователю —
+    // билеты source_order_id → VOIDED (audit action REISSUED), новый PAID-
+    // заказ на те же места создаётся to_user_id одной транзакцией (место НЕ
+    // становится свободным ни на миг — частичный уникальный индекс покрывает
+    // только RESERVED/PAID). Организатор/сеанс наследуются от source-заказа.
+    // Вне транзакции, мягко: клобэк баллов лояльности продавца за старый
+    // заказ + начисление покупателю за новый (тот же LoyaltyPort, что уже
+    // используют ConfirmBooking/VoidOrder) — для перепродажи места по
+    // абонементу (subscription-service.BuyResaleListing).
+    rpc ReissueOrderSeats (ReissueOrderSeatsRequest) returns (ReissueOrderSeatsResponse);
     // Убрать все пригласительные сеанса после матча (bulk void).
     rpc ArchiveScreeningComps (ArchiveScreeningCompsRequest) returns (ArchiveScreeningCompsResponse);
     // Админский список заказов (по умолчанию без VOIDED и COMP).
@@ -62,8 +81,18 @@ service BookingService {
     rpc ListTicketAudit (ListTicketAuditRequest) returns (ListTicketAuditResponse);
     // Печатные представления билетов заказа (для термопечати / повторной печати).
     rpc GetPrintableTickets (GetPrintableTicketsRequest) returns (GetPrintableTicketsResponse);
-    // Проверка билета по id из QR (контроль на входе). Read-only.
+    // Проверка билета по id/короткому коду из QR (контроль на входе,
+    // режим «информация»). Read-only. 3.57.0 — принимает и screening_id
+    // (сверка на «не тот вход»), и короткий код билета, не только id.
     rpc ValidateTicket (ValidateTicketRequest) returns (ValidateTicketResponse);
+    // 3.57.0: контроль на входе, режим «проход» — атомарно фиксирует время
+    // прохода. Второй скан того же билета — ALREADY_CHECKED_IN, не перезаписывает.
+    rpc CheckInTicket (CheckInTicketRequest) returns (CheckInTicketResponse);
+    // 3.58.0: контроль на входе, режим «выпустить» — снимает отметку прохода
+    // (checked_in_at/by → null), НЕ пишет отдельное время выхода. Только для
+    // роли «охрана»/ORGANIZER_ADMIN/ADMIN — доступ проверяет gateway-service,
+    // сам RPC доступен любому вызывающему (как и CheckInTicket).
+    rpc ReleaseTicket (ReleaseTicketRequest) returns (ReleaseTicketResponse);
     // Макет термопечати: общий по умолчанию + переопределения под событие (3.12.0).
     rpc GetPrintTemplate (GetPrintTemplateRequest) returns (GetPrintTemplateResponse);
     rpc SetPrintTemplate (SetPrintTemplateRequest) returns (SetPrintTemplateResponse);
@@ -163,10 +192,15 @@ message CashierSaleItem {
 
 message GetUserBookingsRequest {
     string user_id = 1;
+    // 2026-09-22: keyset-пагинация (тот же приём, что у ListOrders) — было
+    // безлимитным, отдавало все оплаченные заказы пользователя разом.
+    optional string cursor = 2;
+    int32 limit = 3;
 }
 
 message GetUserBookingsResponse {
     repeated BookingItem bookings = 1;
+    optional string next_cursor = 2;
 }
 
 message GetBookingRequest {
@@ -234,7 +268,23 @@ message CancelBookingResponse {
     bool ok = 1;
 }
 
+message GetOrderRefundEligibilityRequest {
+    string order_id = 1;
+}
+
+message GetOrderRefundEligibilityResponse {
+    bool refundable = 1;
+    // Пусто, если refundable = true. Иначе — машиночитаемая причина
+    // ("ORDER_NOT_FOUND" | "EVENT_DAY_OR_PAST").
+    string reason = 2;
+}
+
 message ListReservedSeatsRequest {
+    // 3.59.0: пусто — занятые места ВСЕХ секторов сеанса сразу. Нужно карте
+    // арены целиком: раньше она спрашивала по одному вызову на сектор, то
+    // есть 12 gRPC + 12 SQL на один просмотр страницы события.
+    // (ListCompSeatIds использует это же сообщение, но там пустой sector_id
+    // по-прежнему не применяется — вызывающая сторона всегда задаёт сектор.)
     string sector_id = 1;
     string screening_id = 2;
 }
@@ -315,6 +365,13 @@ message BookingSeatInfo {
     string ticket_id = 5;
     // data-URI PNG; у исторических билетов пусто — фолбэк на BookingItem.qr_code.
     string qr_code = 6;
+    // 3.58.0: короткий код для ручного ввода на входе (см. Ticket.shortCode,
+    // 3.57.0) — показывается в личном кабинете под QR. У билетов, выпущенных
+    // до 3.57.0, пусто (короткий код не генерировался).
+    string short_code = 7;
+    // 3.58.0: непусто, если билет уже был на входе (контроль на входе,
+    // «проход») — личный кабинет отмечает такой билет как использованный.
+    string checked_in_at = 8;
 }
 
 message BookingEventInfo {
@@ -362,6 +419,12 @@ message PrintableTicket {
     bool is_comp = 12;
     // 3.12.0: id события — чтобы выбрать макет печати события.
     string event_id = 13;
+    // 3.62.0: категория билета для печати — уже РАЗРЕШЁННОЕ название
+    // («Детский»), не код: код живёт в pricing-service, и резолвить его на
+    // каждой печатающей стороне отдельно смысла нет. Пусто, если категория
+    // не задавалась или билет продан до 3.62.0 (у билетов на конкретное
+    // место категория тогда не сохранялась).
+    string audience = 14;
 }
 
 message IssueComplimentaryRequest {
@@ -370,6 +433,11 @@ message IssueComplimentaryRequest {
     // id админа, выдавшего пригласительные.
     string issued_by = 3;
     string note = 4;
+    // 2026-09-18: GENERAL_ADMISSION-сектора — количество вместо конкретных
+    // мест (тот же GaInput, что и у CreateCashierSale/CreateReservation;
+    // audience_code им не читается — пригласительные всегда 0 ₽ независимо
+    // от категории).
+    repeated GaInput ga = 5;
 }
 
 message IssueComplimentaryResponse {
@@ -386,6 +454,23 @@ message VoidOrderRequest {
 message VoidOrderResponse {
     // false, если заказ уже был VOIDED (идемпотентный no-op).
     bool changed = 1;
+}
+
+message ReissueOrderSeatsRequest {
+    string source_order_id = 1;
+    string from_user_id = 2;
+    string to_user_id = 3;
+    // Сумма нового заказа (копейки) — назначает вызывающая сторона (для
+    // перепродажи — цена N, выставленная продавцом), не пересчитывается
+    // через pricing-service.
+    int32 amount = 4;
+    string reason = 5;
+    string actor_id = 6;
+}
+
+message ReissueOrderSeatsResponse {
+    string order_id = 1;
+    repeated string ticket_ids = 2;
 }
 
 message ArchiveScreeningCompsRequest {
@@ -460,13 +545,18 @@ message GetPrintableTicketsResponse {
 }
 
 message ValidateTicketRequest {
+    // Принимает id билета ИЛИ его короткий код (Ticket.shortCode, 3.57.0) —
+    // вызывающая сторона не обязана знать, что именно отсканировано/введено.
     string ticket_id = 1;
+    // 3.57.0: если задан — статус получает значение WRONG_SCREENING, когда
+    // билет существует, но выписан на другой сеанс (контроль «не тот вход»).
+    optional string screening_id = 2;
 }
 
 message ValidateTicketResponse {
     // true, только если билет активен (PAID и не VOIDED).
     bool valid = 1;
-    // PAID | VOIDED | RESERVED | NOT_FOUND
+    // PAID | VOIDED | RESERVED | NOT_FOUND | WRONG_SCREENING
     string status = 2;
     bool is_comp = 3;
     string event_title = 4;
@@ -476,6 +566,57 @@ message ValidateTicketResponse {
     string sector_name = 8;
     int32 row = 9;
     int32 number = 10;
+    // 3.57.0: заполнено, если билет уже был на входе (для честной
+    // информационной подсказки — не только режим «проход» это видит).
+    optional string checked_in_at = 11;
+    string checked_in_by = 12;
+}
+
+message CheckInTicketRequest {
+    // id билета ИЛИ короткий код — см. ValidateTicketRequest.
+    string ticket_id = 1;
+    string screening_id = 2;
+    // id аккаунта, выполняющего проход (контролёр/админ-организатор/админ).
+    string actor_id = 3;
+}
+
+message CheckInTicketResponse {
+    // OK | NOT_FOUND | WRONG_SCREENING | NOT_PAID | ALREADY_CHECKED_IN
+    string status = 1;
+    bool is_comp = 2;
+    string event_title = 3;
+    string screening_date = 4;
+    string screening_time = 5;
+    string venue_name = 6;
+    string sector_name = 7;
+    int32 row = 8;
+    int32 number = 9;
+    // Заполнено при OK (только что записанное) и ALREADY_CHECKED_IN
+    // (существовавшее раньше — для redflag-сообщения «кем и когда»).
+    string checked_in_at = 10;
+    string checked_in_by = 11;
+}
+
+message ReleaseTicketRequest {
+    // id билета ИЛИ короткий код — см. ValidateTicketRequest.
+    string ticket_id = 1;
+    string screening_id = 2;
+    // id аккаунта, выполняющего «выпуск» (охрана/админ-организатор/админ).
+    string actor_id = 3;
+}
+
+message ReleaseTicketResponse {
+    // OK (отметка снята) | NOT_FOUND | WRONG_SCREENING | NOT_CHECKED_IN
+    // (билет не проходил — снимать нечего).
+    string status = 1;
+    bool is_comp = 2;
+    string event_title = 3;
+    string screening_date = 4;
+    string screening_time = 5;
+    string venue_name = 6;
+    string sector_name = 7;
+    int32 row = 8;
+    int32 number = 9;
 }
 
 message GetPrintTemplateRequest {
