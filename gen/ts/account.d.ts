@@ -59,6 +59,8 @@ export interface ListRolesResponse {
 export interface InitEmailChangeRequest {
     email: string;
     userId: string;
+    /** Организатор-тенант по домену запроса — см. auth.proto SendOtpRequest.organizer_id. */
+    organizerId: string;
 }
 export interface InitEmailChangeResponse {
     ok: boolean;
@@ -74,6 +76,8 @@ export interface ConfirmEmailChangeResponse {
 export interface InitPhoneChangeRequest {
     phone: string;
     userId: string;
+    /** Организатор-тенант по домену запроса — см. auth.proto SendOtpRequest.organizer_id. */
+    organizerId: string;
 }
 export interface InitPhoneChangeResponse {
     ok: boolean;

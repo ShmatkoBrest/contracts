@@ -31,4 +31,6 @@ export interface TicketsEmailRequestedEvent {
     html?: string;
     /** Пусто — тема по умолчанию ("Ваш билет" / "Ваши билеты (N)"). */
     subject?: string;
+    /** Организатор события заказа — письмо уходит через его SMTP, если настроен. */
+    organizerId?: string;
 }

@@ -116,6 +116,8 @@ message ListRolesResponse {
 message InitEmailChangeRequest {
   string email   = 1;
   string user_id = 2;
+  // Организатор-тенант по домену запроса — см. auth.proto SendOtpRequest.organizer_id.
+  string organizer_id = 3;
 }
 
 message InitEmailChangeResponse {
@@ -135,6 +137,8 @@ message ConfirmEmailChangeResponse {
 message InitPhoneChangeRequest {
   string phone   = 1;
   string user_id = 2;
+  // Организатор-тенант по домену запроса — см. auth.proto SendOtpRequest.organizer_id.
+  string organizer_id = 3;
 }
 
 message InitPhoneChangeResponse {

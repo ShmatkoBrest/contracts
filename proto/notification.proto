@@ -2,15 +2,24 @@ syntax = "proto3";
 
 package notification.v1;
 
-// Настройки отправки SMS (OTP, смена телефона) — платформенный уровень, не
-// per-organizer: единый шлюз уведомлений для всей платформы. Секреты живут
-// здесь, а не в content.v1 — ListContent там отдаётся ПУБЛИЧНО без
-// авторизации на каждой странице сайта, хранить в нём пароль от SMS-шлюза
-// означало бы отдавать его любому анонимному посетителю. Вызывается только
-// gateway-service (ADMIN-only на HTTP-уровне), собственной авторизации нет.
+// Настройки отправки SMS и email (OTP, смена контакта, письма с билетами).
+// Два уровня: платформенный (общий сайт — Get/Set*Settings) и
+// организаторский (Get/SetOrganizerNotificationSettings — только для
+// организаторов с включённым модулем "notifications", проверяет
+// gateway-service). Организатор не заполнил канал — используются
+// платформенные настройки этого канала. Секреты живут здесь, а не в
+// content.v1 — ListContent там отдаётся ПУБЛИЧНО без авторизации на каждой
+// странице сайта. Вызывается только gateway-service, собственной
+// авторизации нет.
 service NotificationSettingsService {
     rpc GetSmsSettings (GetSmsSettingsRequest) returns (SmsSettings);
     rpc SetSmsSettings (SetSmsSettingsRequest) returns (SmsSettings);
+
+    rpc GetEmailSettings (GetEmailSettingsRequest) returns (EmailSettings);
+    rpc SetEmailSettings (SetEmailSettingsRequest) returns (EmailSettings);
+
+    rpc GetOrganizerNotificationSettings (GetOrganizerNotificationSettingsRequest) returns (OrganizerNotificationSettings);
+    rpc SetOrganizerNotificationSettings (SetOrganizerNotificationSettingsRequest) returns (OrganizerNotificationSettings);
 }
 
 message GetSmsSettingsRequest {
@@ -71,4 +80,57 @@ message SetSmsSettingsRequest {
     optional string mts_password = 10;
     string mts_alpha_name = 11;
     int32 mts_ttl_seconds = 12;
+}
+
+// ===== Email (SMTP), платформенный уровень =====
+
+message GetEmailSettingsRequest {
+}
+
+message EmailSettings {
+    // false — в БД ещё нет записи, используются переменные окружения SMTP_*.
+    bool configured = 1;
+    string smtp_host = 2;
+    int32 smtp_port = 3;
+    string smtp_username = 4;
+    string smtp_password = 5;
+    bool smtp_secure = 6;
+    string from_address = 7;
+}
+
+message SetEmailSettingsRequest {
+    string smtp_host = 1;
+    int32 smtp_port = 2;
+    string smtp_username = 3;
+    // Не передано — пароль не меняется; "" — очистить (см. SetSmsSettingsRequest).
+    optional string smtp_password = 4;
+    bool smtp_secure = 5;
+    string from_address = 6;
+}
+
+// ===== Настройки организатора (SMS + email) =====
+
+message GetOrganizerNotificationSettingsRequest {
+    string organizer_id = 1;
+}
+
+// Значения — ЭФФЕКТИВНЫЕ: свои у организатора, если канал настроен, иначе
+// платформенные (то, что реально будет использовано при отправке). Флаги
+// *_configured говорят, свои ли это (true) или унаследованные (false).
+message OrganizerNotificationSettings {
+    string organizer_id = 1;
+    bool sms_configured = 2;
+    SmsSettings sms = 3;
+    bool email_configured = 4;
+    EmailSettings email = 5;
+}
+
+message SetOrganizerNotificationSettingsRequest {
+    string organizer_id = 1;
+    // Канал не передан — не трогать. clear_* — сбросить свои настройки
+    // канала и вернуться к платформенным.
+    optional SetSmsSettingsRequest sms = 2;
+    bool clear_sms = 3;
+    optional SetEmailSettingsRequest email = 4;
+    bool clear_email = 5;
 }
