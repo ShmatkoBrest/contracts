@@ -10,263 +10,30 @@ export interface GetOrganizerRequest {
 export interface GetOrganizerResponse {
     organizer: Organizer | undefined;
 }
-export interface CreateOrganizerRequest {
-    title: string;
-    description: string;
-    image: string;
-    /**
-     * 3.28.0: свой домен/поддомен (например "club.usteam.by" или
-     * "tickets.club.by") — пусто, если у организатора нет отдельного сайта.
-     */
-    domain: string;
-}
-export interface CreateOrganizerResponse {
-    organizer: Organizer | undefined;
-}
-export interface UpdateOrganizerRequest {
-    id: string;
-    title: string;
-    description: string;
-    image: string;
-    domain: string;
-}
-export interface UpdateOrganizerResponse {
-    organizer: Organizer | undefined;
-}
-export interface DeleteOrganizerRequest {
-    id: string;
-}
-export interface DeleteOrganizerResponse {
-    ok: boolean;
-}
-export interface GetOrganizerByDomainRequest {
-    /** Хост из заголовка запроса, без порта и протокола (например "club.usteam.by"). */
-    domain: string;
-}
-export interface GetOrganizerByDomainResponse {
-    found: boolean;
-    organizer: Organizer | undefined;
-}
-export interface SetOrganizerLicenseRequest {
-    organizerId: string;
-    /** ACTIVE | TRIAL | REVOKED */
-    status: string;
-    /** ISO-строка, пусто = бессрочно. */
-    expiresAt: string;
-    /**
-     * true — выпустить новый ключ взамен старого (или первый, если ещё нет).
-     * false — поменять только status/expires_at, ключ не трогать.
-     */
-    regenerateKey: boolean;
-}
-export interface SetOrganizerLicenseResponse {
-    organizer: Organizer | undefined;
-}
-export interface ValidateLicenseKeyRequest {
-    key: string;
-}
-export interface ValidateLicenseKeyResponse {
-    /** false — ключа нет, статус REVOKED или истёк срок. */
-    valid: boolean;
-    organizer: Organizer | undefined;
-}
-export interface SetOrganizerCommissionRequest {
-    organizerId: string;
-    commissionPercent: number;
-    /** true — снять ставку (не назначена/не применяется), остальные поля игнорируются. */
-    clear: boolean;
-}
-export interface SetOrganizerCommissionResponse {
-    organizer: Organizer | undefined;
-}
-export interface SetOrganizerModulesRequest {
-    organizerId: string;
-    /**
-     * Ключи ОТКЛЮЧЁННЫХ модулей (не список разрешённых) — пусто = всё
-     * включено (дефолт для организатора без явного ограничения). Известные
-     * ключи сейчас: "news", "subscriptions", "partners", "loyalty".
-     */
-    disabledModules: string[];
-}
-export interface SetOrganizerModulesResponse {
-    organizer: Organizer | undefined;
-}
-export interface SetOrganizerSiteEnabledRequest {
-    organizerId: string;
-    enabled: boolean;
-}
-export interface SetOrganizerSiteEnabledResponse {
-    organizer: Organizer | undefined;
-}
-export interface RecordOrganizerSiteBuildRequest {
-    organizerId: string;
-    /** NONE | VALIDATING | BUILDING | SUCCESS | FAILED */
-    status: string;
-    /**
-     * Текущая версия загруженного оверлея — вызывающая сторона передаёт то
-     * же значение, что уже хранится, если это просто пересборка без нового
-     * аплоада, или инкрементированное — если аплоад был валиден.
-     */
-    overlayVersion: number;
-    /** ISO-строка, пусто — не менять сохранённое значение. */
-    builtAt: string;
-    /** Пусто на успехе/промежуточных статусах — очищает предыдущую ошибку. */
-    buildError: string;
-}
-export interface RecordOrganizerSiteBuildResponse {
-    organizer: Organizer | undefined;
-}
 export interface Organizer {
     id: string;
     title: string;
     description: string;
     image: string;
-    domain: string;
-    /**
-     * 3.29.0: поля лицензии — ТОЛЬКО для ADMIN-контекста на gateway-service,
-     * публичные GetOrganizer/ListOrganizers их обязаны вырезать перед отдачей.
-     */
-    licenseKey: string;
-    licenseStatus: string;
-    licenseExpiresAt: string;
-    /**
-     * 3.32.0: ставка комиссии платформы (не задана — комиссия не назначена).
-     * Тот же принцип, что и лицензия: ТОЛЬКО для ADMIN/владельца-организации,
-     * публичные ответы обязаны вырезать перед отдачей.
-     */
-    commissionPercent?: number | undefined;
-    /**
-     * Отключённые функциональные модули для этого организатора (пусто —
-     * всё включено). Не приватное поле в отличие от лицензии/комиссии —
-     * публичный сайт организатора обязан это знать, чтобы скрыть разделы.
-     */
-    disabledModules: string[];
-    /**
-     * Организаторский white-label сайт — ТОЛЬКО для ADMIN/владельца-
-     * организации (тот же принцип, что лицензия/комиссия выше), публичные
-     * ответы обязаны вырезать перед отдачей.
-     */
-    siteEnabled: boolean;
-    /** NONE | VALIDATING | BUILDING | SUCCESS | FAILED */
-    siteBuildStatus: string;
-    siteOverlayVersion: number;
-    siteBuiltAt: string;
-    siteBuildError: string;
 }
 export declare const ORGANIZER_V1_PACKAGE_NAME = "organizer.v1";
-/** Сервис для работы с организаторами событий */
+/**
+ * Сервис для работы с организаторами событий.
+ * Одиночная платформа: мутирующие RPC убраны — организатор создаётся
+ * через seed / прямой SQL, управление через admin-UI не предусмотрено.
+ */
 export interface OrganizerServiceClient {
-    /** получение списка организаторов */
     listOrganizers(request: Empty): Observable<ListOrganizersResponse>;
-    /** получение организатора по id */
     getOrganizer(request: GetOrganizerRequest): Observable<GetOrganizerResponse>;
-    /** создание организатора */
-    createOrganizer(request: CreateOrganizerRequest): Observable<CreateOrganizerResponse>;
-    /** обновление организатора */
-    updateOrganizer(request: UpdateOrganizerRequest): Observable<UpdateOrganizerResponse>;
-    /** удаление организатора */
-    deleteOrganizer(request: DeleteOrganizerRequest): Observable<DeleteOrganizerResponse>;
-    /**
-     * 3.28.0: организатор = тенант "коробочной" платформы — резолв входящего
-     * домена/поддомена (Host-заголовок) в организатора на gateway-service, на
-     * каждый запрос. `found=false` — обычный публичный домен без своего
-     * организатора (общий сайт всех событий), не ошибка.
-     */
-    getOrganizerByDomain(request: GetOrganizerByDomainRequest): Observable<GetOrganizerByDomainResponse>;
-    /**
-     * 3.29.0: лицензионный ключ — для развёртываний фронтенда организатора
-     * ВНЕ нашей инфраструктуры (свой хостинг), которые всё равно ходят за
-     * общим каталогом/авторизацией в этот же gateway-service (заголовком
-     * Host там резолвить нечего — домен терминируется не у нас). ADMIN.
-     */
-    setOrganizerLicense(request: SetOrganizerLicenseRequest): Observable<SetOrganizerLicenseResponse>;
-    /** Резолв X-License-Key на каждый внешний запрос — аналог GetOrganizerByDomain. */
-    validateLicenseKey(request: ValidateLicenseKeyRequest): Observable<ValidateLicenseKeyResponse>;
-    /**
-     * 3.32.0: ставка комиссии платформы для этого организатора. Организатор
-     * перечисляет комиссию САМ — сервис ничего не удерживает автоматически,
-     * только хранит ставку и участвует в отчёте (analytics.v1.
-     * ListOrganizerCommissions). ADMIN-only — решение платформы, не self-service.
-     */
-    setOrganizerCommission(request: SetOrganizerCommissionRequest): Observable<SetOrganizerCommissionResponse>;
-    /**
-     * Включение/отключение функциональных модулей (новости, абонементы, ...)
-     * для конкретного организатора — на публичном сайте организатора
-     * отключённый модуль скрывается целиком (шапка + маршруты). ADMIN-only —
-     * решение платформы о том, что организатору доступно, не self-service.
-     */
-    setOrganizerModules(request: SetOrganizerModulesRequest): Observable<SetOrganizerModulesResponse>;
-    /**
-     * Организаторский white-label сайт (оверлей презентационных файлов
-     * поверх core `frontend`, собирается и раздаётся платформой под
-     * `domain`). Self-service для своего ORGANIZER_ADMIN — это его
-     * собственная презентация, не решение платформы о доверии (в отличие
-     * от лицензии).
-     */
-    setOrganizerSiteEnabled(request: SetOrganizerSiteEnabledRequest): Observable<SetOrganizerSiteEnabledResponse>;
-    /**
-     * Пишет статус сборки (site-builder через gateway) — отдельная RPC, а
-     * не общий UpdateOrganizer, чтобы не read-modify-write гонять поля,
-     * которые сборщик не знает (enabled и т.п.).
-     */
-    recordOrganizerSiteBuild(request: RecordOrganizerSiteBuildRequest): Observable<RecordOrganizerSiteBuildResponse>;
 }
-/** Сервис для работы с организаторами событий */
+/**
+ * Сервис для работы с организаторами событий.
+ * Одиночная платформа: мутирующие RPC убраны — организатор создаётся
+ * через seed / прямой SQL, управление через admin-UI не предусмотрено.
+ */
 export interface OrganizerServiceController {
-    /** получение списка организаторов */
     listOrganizers(request: Empty): Promise<ListOrganizersResponse> | Observable<ListOrganizersResponse> | ListOrganizersResponse;
-    /** получение организатора по id */
     getOrganizer(request: GetOrganizerRequest): Promise<GetOrganizerResponse> | Observable<GetOrganizerResponse> | GetOrganizerResponse;
-    /** создание организатора */
-    createOrganizer(request: CreateOrganizerRequest): Promise<CreateOrganizerResponse> | Observable<CreateOrganizerResponse> | CreateOrganizerResponse;
-    /** обновление организатора */
-    updateOrganizer(request: UpdateOrganizerRequest): Promise<UpdateOrganizerResponse> | Observable<UpdateOrganizerResponse> | UpdateOrganizerResponse;
-    /** удаление организатора */
-    deleteOrganizer(request: DeleteOrganizerRequest): Promise<DeleteOrganizerResponse> | Observable<DeleteOrganizerResponse> | DeleteOrganizerResponse;
-    /**
-     * 3.28.0: организатор = тенант "коробочной" платформы — резолв входящего
-     * домена/поддомена (Host-заголовок) в организатора на gateway-service, на
-     * каждый запрос. `found=false` — обычный публичный домен без своего
-     * организатора (общий сайт всех событий), не ошибка.
-     */
-    getOrganizerByDomain(request: GetOrganizerByDomainRequest): Promise<GetOrganizerByDomainResponse> | Observable<GetOrganizerByDomainResponse> | GetOrganizerByDomainResponse;
-    /**
-     * 3.29.0: лицензионный ключ — для развёртываний фронтенда организатора
-     * ВНЕ нашей инфраструктуры (свой хостинг), которые всё равно ходят за
-     * общим каталогом/авторизацией в этот же gateway-service (заголовком
-     * Host там резолвить нечего — домен терминируется не у нас). ADMIN.
-     */
-    setOrganizerLicense(request: SetOrganizerLicenseRequest): Promise<SetOrganizerLicenseResponse> | Observable<SetOrganizerLicenseResponse> | SetOrganizerLicenseResponse;
-    /** Резолв X-License-Key на каждый внешний запрос — аналог GetOrganizerByDomain. */
-    validateLicenseKey(request: ValidateLicenseKeyRequest): Promise<ValidateLicenseKeyResponse> | Observable<ValidateLicenseKeyResponse> | ValidateLicenseKeyResponse;
-    /**
-     * 3.32.0: ставка комиссии платформы для этого организатора. Организатор
-     * перечисляет комиссию САМ — сервис ничего не удерживает автоматически,
-     * только хранит ставку и участвует в отчёте (analytics.v1.
-     * ListOrganizerCommissions). ADMIN-only — решение платформы, не self-service.
-     */
-    setOrganizerCommission(request: SetOrganizerCommissionRequest): Promise<SetOrganizerCommissionResponse> | Observable<SetOrganizerCommissionResponse> | SetOrganizerCommissionResponse;
-    /**
-     * Включение/отключение функциональных модулей (новости, абонементы, ...)
-     * для конкретного организатора — на публичном сайте организатора
-     * отключённый модуль скрывается целиком (шапка + маршруты). ADMIN-only —
-     * решение платформы о том, что организатору доступно, не self-service.
-     */
-    setOrganizerModules(request: SetOrganizerModulesRequest): Promise<SetOrganizerModulesResponse> | Observable<SetOrganizerModulesResponse> | SetOrganizerModulesResponse;
-    /**
-     * Организаторский white-label сайт (оверлей презентационных файлов
-     * поверх core `frontend`, собирается и раздаётся платформой под
-     * `domain`). Self-service для своего ORGANIZER_ADMIN — это его
-     * собственная презентация, не решение платформы о доверии (в отличие
-     * от лицензии).
-     */
-    setOrganizerSiteEnabled(request: SetOrganizerSiteEnabledRequest): Promise<SetOrganizerSiteEnabledResponse> | Observable<SetOrganizerSiteEnabledResponse> | SetOrganizerSiteEnabledResponse;
-    /**
-     * Пишет статус сборки (site-builder через gateway) — отдельная RPC, а
-     * не общий UpdateOrganizer, чтобы не read-modify-write гонять поля,
-     * которые сборщик не знает (enabled и т.п.).
-     */
-    recordOrganizerSiteBuild(request: RecordOrganizerSiteBuildRequest): Promise<RecordOrganizerSiteBuildResponse> | Observable<RecordOrganizerSiteBuildResponse> | RecordOrganizerSiteBuildResponse;
 }
 export declare function OrganizerServiceControllerMethods(): (constructor: Function) => void;
 export declare const ORGANIZER_SERVICE_NAME = "OrganizerService";

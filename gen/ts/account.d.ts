@@ -18,12 +18,6 @@ export interface GetAccountResponse {
      * `ROLE_KEYS` в @usteam/common.
      */
     role: string;
-    /**
-     * 3.31.0: organizerId для роли ORGANIZER_ADMIN — единственная организация,
-     * данными которой этот аккаунт вправе управлять в gateway-service. Пусто —
-     * роль без привязки (обычный случай для всех остальных ролей).
-     */
-    organizerId: string;
 }
 export interface ListAccountsRequest {
     /** Поиск по подстроке в phone/email */
@@ -39,14 +33,8 @@ export interface ListAccountsResponse {
 }
 export interface SetAccountRoleRequest {
     id: string;
-    /** Ключ роли (USER | ADMIN | EDITOR | CASHIER | ORGANIZER_ADMIN) */
+    /** Ключ роли (USER | ADMIN | EDITOR | CASHIER) */
     role: string;
-    /**
-     * Обязателен, только если role = ORGANIZER_ADMIN; для любой другой роли
-     * игнорируется и очищается на стороне auth-service (не доверяем клиенту
-     * рассинхронизированную комбинацию роль+организация).
-     */
-    organizerId: string;
 }
 export interface Role {
     id: string;
@@ -59,8 +47,6 @@ export interface ListRolesResponse {
 export interface InitEmailChangeRequest {
     email: string;
     userId: string;
-    /** Организатор-тенант по домену запроса — см. auth.proto SendOtpRequest.organizer_id. */
-    organizerId: string;
 }
 export interface InitEmailChangeResponse {
     ok: boolean;
@@ -76,8 +62,6 @@ export interface ConfirmEmailChangeResponse {
 export interface InitPhoneChangeRequest {
     phone: string;
     userId: string;
-    /** Организатор-тенант по домену запроса — см. auth.proto SendOtpRequest.organizer_id. */
-    organizerId: string;
 }
 export interface InitPhoneChangeResponse {
     ok: boolean;

@@ -99,47 +99,13 @@ export interface SetEmailSettingsRequest {
   fromAddress: string;
 }
 
-export interface GetOrganizerNotificationSettingsRequest {
-  organizerId: string;
-}
-
-/**
- * Значения — ЭФФЕКТИВНЫЕ: свои у организатора, если канал настроен, иначе
- * платформенные (то, что реально будет использовано при отправке). Флаги
- * *_configured говорят, свои ли это (true) или унаследованные (false).
- */
-export interface OrganizerNotificationSettings {
-  organizerId: string;
-  smsConfigured: boolean;
-  sms: SmsSettings | undefined;
-  emailConfigured: boolean;
-  email: EmailSettings | undefined;
-}
-
-export interface SetOrganizerNotificationSettingsRequest {
-  organizerId: string;
-  /**
-   * Канал не передан — не трогать. clear_* — сбросить свои настройки
-   * канала и вернуться к платформенным.
-   */
-  sms?: SetSmsSettingsRequest | undefined;
-  clearSms: boolean;
-  email?: SetEmailSettingsRequest | undefined;
-  clearEmail: boolean;
-}
-
 export const NOTIFICATION_V1_PACKAGE_NAME = "notification.v1";
 
 /**
  * Настройки отправки SMS и email (OTP, смена контакта, письма с билетами).
- * Два уровня: платформенный (общий сайт — Get/Set*Settings) и
- * организаторский (Get/SetOrganizerNotificationSettings — только для
- * организаторов с включённым модулем "notifications", проверяет
- * gateway-service). Организатор не заполнил канал — используются
- * платформенные настройки этого канала. Секреты живут здесь, а не в
- * content.v1 — ListContent там отдаётся ПУБЛИЧНО без авторизации на каждой
- * странице сайта. Вызывается только gateway-service, собственной
- * авторизации нет.
+ * Платформенный уровень — единственный. Вызывается только gateway-service,
+ * собственной авторизации нет.
+ * REMOVED: GetOrganizerNotificationSettings, SetOrganizerNotificationSettings
  */
 
 export interface NotificationSettingsServiceClient {
@@ -150,26 +116,13 @@ export interface NotificationSettingsServiceClient {
   getEmailSettings(request: GetEmailSettingsRequest): Observable<EmailSettings>;
 
   setEmailSettings(request: SetEmailSettingsRequest): Observable<EmailSettings>;
-
-  getOrganizerNotificationSettings(
-    request: GetOrganizerNotificationSettingsRequest,
-  ): Observable<OrganizerNotificationSettings>;
-
-  setOrganizerNotificationSettings(
-    request: SetOrganizerNotificationSettingsRequest,
-  ): Observable<OrganizerNotificationSettings>;
 }
 
 /**
  * Настройки отправки SMS и email (OTP, смена контакта, письма с билетами).
- * Два уровня: платформенный (общий сайт — Get/Set*Settings) и
- * организаторский (Get/SetOrganizerNotificationSettings — только для
- * организаторов с включённым модулем "notifications", проверяет
- * gateway-service). Организатор не заполнил канал — используются
- * платформенные настройки этого канала. Секреты живут здесь, а не в
- * content.v1 — ListContent там отдаётся ПУБЛИЧНО без авторизации на каждой
- * странице сайта. Вызывается только gateway-service, собственной
- * авторизации нет.
+ * Платформенный уровень — единственный. Вызывается только gateway-service,
+ * собственной авторизации нет.
+ * REMOVED: GetOrganizerNotificationSettings, SetOrganizerNotificationSettings
  */
 
 export interface NotificationSettingsServiceController {
@@ -184,26 +137,11 @@ export interface NotificationSettingsServiceController {
   setEmailSettings(
     request: SetEmailSettingsRequest,
   ): Promise<EmailSettings> | Observable<EmailSettings> | EmailSettings;
-
-  getOrganizerNotificationSettings(
-    request: GetOrganizerNotificationSettingsRequest,
-  ): Promise<OrganizerNotificationSettings> | Observable<OrganizerNotificationSettings> | OrganizerNotificationSettings;
-
-  setOrganizerNotificationSettings(
-    request: SetOrganizerNotificationSettingsRequest,
-  ): Promise<OrganizerNotificationSettings> | Observable<OrganizerNotificationSettings> | OrganizerNotificationSettings;
 }
 
 export function NotificationSettingsServiceControllerMethods() {
   return function (constructor: Function) {
-    const grpcMethods: string[] = [
-      "getSmsSettings",
-      "setSmsSettings",
-      "getEmailSettings",
-      "setEmailSettings",
-      "getOrganizerNotificationSettings",
-      "setOrganizerNotificationSettings",
-    ];
+    const grpcMethods: string[] = ["getSmsSettings", "setSmsSettings", "getEmailSettings", "setEmailSettings"];
     for (const method of grpcMethods) {
       const descriptor: any = Reflect.getOwnPropertyDescriptor(constructor.prototype, method);
       GrpcMethod("NotificationSettingsService", method)(constructor.prototype[method], method, descriptor);

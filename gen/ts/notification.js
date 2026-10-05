@@ -26,14 +26,7 @@ var SmsProvider;
 exports.NOTIFICATION_V1_PACKAGE_NAME = "notification.v1";
 function NotificationSettingsServiceControllerMethods() {
     return function (constructor) {
-        const grpcMethods = [
-            "getSmsSettings",
-            "setSmsSettings",
-            "getEmailSettings",
-            "setEmailSettings",
-            "getOrganizerNotificationSettings",
-            "setOrganizerNotificationSettings",
-        ];
+        const grpcMethods = ["getSmsSettings", "setSmsSettings", "getEmailSettings", "setEmailSettings"];
         for (const method of grpcMethods) {
             const descriptor = Reflect.getOwnPropertyDescriptor(constructor.prototype, method);
             (0, microservices_1.GrpcMethod)("NotificationSettingsService", method)(constructor.prototype[method], method, descriptor);

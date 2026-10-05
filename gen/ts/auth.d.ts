@@ -27,14 +27,6 @@ export interface SendOtpRequest {
      * doc_type="marketing" — отзывается независимо в личном кабинете.
      */
     marketingAccepted: boolean;
-    /**
-     * Организатор-тенант, резолвленный gateway-service по домену запроса
-     * (TenantResolverMiddleware) — пусто, если вход идёт с общего сайта
-     * платформы. Позволяет notification-service отправить OTP через
-     * собственный SMS/email-шлюз организатора, если он его настроил (см.
-     * notification.v1.NotificationSettingsService.GetOrganizerNotificationSettings).
-     */
-    organizerId: string;
 }
 /**
  * Ответ на отправку OTP.

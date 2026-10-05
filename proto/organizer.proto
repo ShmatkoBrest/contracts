@@ -4,50 +4,18 @@ package organizer.v1;
 
 import "google/protobuf/empty.proto";
 
-// Сервис для работы с организаторами событий
+// Сервис для работы с организаторами событий.
+// Одиночная платформа: мутирующие RPC убраны — организатор создаётся
+// через seed / прямой SQL, управление через admin-UI не предусмотрено.
 service OrganizerService {
-    // получение списка организаторов
     rpc ListOrganizers (google.protobuf.Empty) returns (ListOrganizersResponse);
-    // получение организатора по id
     rpc GetOrganizer (GetOrganizerRequest) returns (GetOrganizerResponse);
-    // создание организатора
-    rpc CreateOrganizer (CreateOrganizerRequest) returns (CreateOrganizerResponse);
-    // обновление организатора
-    rpc UpdateOrganizer (UpdateOrganizerRequest) returns (UpdateOrganizerResponse);
-    // удаление организатора
-    rpc DeleteOrganizer (DeleteOrganizerRequest) returns (DeleteOrganizerResponse);
-    // 3.28.0: организатор = тенант "коробочной" платформы — резолв входящего
-    // домена/поддомена (Host-заголовок) в организатора на gateway-service, на
-    // каждый запрос. `found=false` — обычный публичный домен без своего
-    // организатора (общий сайт всех событий), не ошибка.
-    rpc GetOrganizerByDomain (GetOrganizerByDomainRequest) returns (GetOrganizerByDomainResponse);
-    // 3.29.0: лицензионный ключ — для развёртываний фронтенда организатора
-    // ВНЕ нашей инфраструктуры (свой хостинг), которые всё равно ходят за
-    // общим каталогом/авторизацией в этот же gateway-service (заголовком
-    // Host там резолвить нечего — домен терминируется не у нас). ADMIN.
-    rpc SetOrganizerLicense (SetOrganizerLicenseRequest) returns (SetOrganizerLicenseResponse);
-    // Резолв X-License-Key на каждый внешний запрос — аналог GetOrganizerByDomain.
-    rpc ValidateLicenseKey (ValidateLicenseKeyRequest) returns (ValidateLicenseKeyResponse);
-    // 3.32.0: ставка комиссии платформы для этого организатора. Организатор
-    // перечисляет комиссию САМ — сервис ничего не удерживает автоматически,
-    // только хранит ставку и участвует в отчёте (analytics.v1.
-    // ListOrganizerCommissions). ADMIN-only — решение платформы, не self-service.
-    rpc SetOrganizerCommission (SetOrganizerCommissionRequest) returns (SetOrganizerCommissionResponse);
-    // Включение/отключение функциональных модулей (новости, абонементы, ...)
-    // для конкретного организатора — на публичном сайте организатора
-    // отключённый модуль скрывается целиком (шапка + маршруты). ADMIN-only —
-    // решение платформы о том, что организатору доступно, не self-service.
-    rpc SetOrganizerModules (SetOrganizerModulesRequest) returns (SetOrganizerModulesResponse);
-    // Организаторский white-label сайт (оверлей презентационных файлов
-    // поверх core `frontend`, собирается и раздаётся платформой под
-    // `domain`). Self-service для своего ORGANIZER_ADMIN — это его
-    // собственная презентация, не решение платформы о доверии (в отличие
-    // от лицензии).
-    rpc SetOrganizerSiteEnabled (SetOrganizerSiteEnabledRequest) returns (SetOrganizerSiteEnabledResponse);
-    // Пишет статус сборки (site-builder через gateway) — отдельная RPC, а
-    // не общий UpdateOrganizer, чтобы не read-modify-write гонять поля,
-    // которые сборщик не знает (enabled и т.п.).
-    rpc RecordOrganizerSiteBuild (RecordOrganizerSiteBuildRequest) returns (RecordOrganizerSiteBuildResponse);
+
+    // REMOVED (multi-tenant era):
+    //   CreateOrganizer, UpdateOrganizer, DeleteOrganizer,
+    //   GetOrganizerByDomain, SetOrganizerLicense, ValidateLicenseKey,
+    //   SetOrganizerCommission, SetOrganizerModules,
+    //   SetOrganizerSiteEnabled, RecordOrganizerSiteBuild
 }
 
 message ListOrganizersResponse {
@@ -62,150 +30,22 @@ message GetOrganizerResponse {
     Organizer organizer = 1;
 }
 
-message CreateOrganizerRequest {
-    string title       = 1;
-    string description = 2;
-    string image       = 3;
-    // 3.28.0: свой домен/поддомен (например "club.usteam.by" или
-    // "tickets.club.by") — пусто, если у организатора нет отдельного сайта.
-    string domain      = 4;
-}
-
-message CreateOrganizerResponse {
-    Organizer organizer = 1;
-}
-
-message UpdateOrganizerRequest {
-    string id          = 1;
-    string title       = 2;
-    string description = 3;
-    string image       = 4;
-    string domain       = 5;
-}
-
-message UpdateOrganizerResponse {
-    Organizer organizer = 1;
-}
-
-message DeleteOrganizerRequest {
-    string id = 1;
-}
-
-message DeleteOrganizerResponse {
-    bool ok = 1;
-}
-
-message GetOrganizerByDomainRequest {
-    // Хост из заголовка запроса, без порта и протокола (например "club.usteam.by").
-    string domain = 1;
-}
-
-message GetOrganizerByDomainResponse {
-    bool found = 1;
-    Organizer organizer = 2;
-}
-
-message SetOrganizerLicenseRequest {
-    string organizer_id = 1;
-    // ACTIVE | TRIAL | REVOKED
-    string status = 2;
-    // ISO-строка, пусто = бессрочно.
-    string expires_at = 3;
-    // true — выпустить новый ключ взамен старого (или первый, если ещё нет).
-    // false — поменять только status/expires_at, ключ не трогать.
-    bool regenerate_key = 4;
-}
-
-message SetOrganizerLicenseResponse {
-    Organizer organizer = 1;
-}
-
-message ValidateLicenseKeyRequest {
-    string key = 1;
-}
-
-message ValidateLicenseKeyResponse {
-    // false — ключа нет, статус REVOKED или истёк срок.
-    bool valid = 1;
-    Organizer organizer = 2;
-}
-
-message SetOrganizerCommissionRequest {
-    string organizer_id = 1;
-    double commission_percent = 2;
-    // true — снять ставку (не назначена/не применяется), остальные поля игнорируются.
-    bool clear = 3;
-}
-
-message SetOrganizerCommissionResponse {
-    Organizer organizer = 1;
-}
-
-message SetOrganizerModulesRequest {
-    string organizer_id = 1;
-    // Ключи ОТКЛЮЧЁННЫХ модулей (не список разрешённых) — пусто = всё
-    // включено (дефолт для организатора без явного ограничения). Известные
-    // ключи сейчас: "news", "subscriptions", "partners", "loyalty".
-    repeated string disabled_modules = 2;
-}
-
-message SetOrganizerModulesResponse {
-    Organizer organizer = 1;
-}
-
-message SetOrganizerSiteEnabledRequest {
-    string organizer_id = 1;
-    bool enabled = 2;
-}
-
-message SetOrganizerSiteEnabledResponse {
-    Organizer organizer = 1;
-}
-
-message RecordOrganizerSiteBuildRequest {
-    string organizer_id = 1;
-    // NONE | VALIDATING | BUILDING | SUCCESS | FAILED
-    string status = 2;
-    // Текущая версия загруженного оверлея — вызывающая сторона передаёт то
-    // же значение, что уже хранится, если это просто пересборка без нового
-    // аплоада, или инкрементированное — если аплоад был валиден.
-    int32 overlay_version = 3;
-    // ISO-строка, пусто — не менять сохранённое значение.
-    string built_at = 4;
-    // Пусто на успехе/промежуточных статусах — очищает предыдущую ошибку.
-    string build_error = 5;
-}
-
-message RecordOrganizerSiteBuildResponse {
-    Organizer organizer = 1;
-}
-
 message Organizer {
     string id          = 1;
     string title       = 2;
     string description = 3;
     string image       = 4;
-    string domain       = 5;
-    // 3.29.0: поля лицензии — ТОЛЬКО для ADMIN-контекста на gateway-service,
-    // публичные GetOrganizer/ListOrganizers их обязаны вырезать перед отдачей.
-    string license_key = 6;
-    string license_status = 7;
-    string license_expires_at = 8;
-    // 3.32.0: ставка комиссии платформы (не задана — комиссия не назначена).
-    // Тот же принцип, что и лицензия: ТОЛЬКО для ADMIN/владельца-организации,
-    // публичные ответы обязаны вырезать перед отдачей.
-    optional double commission_percent = 9;
-    // Отключённые функциональные модули для этого организатора (пусто —
-    // всё включено). Не приватное поле в отличие от лицензии/комиссии —
-    // публичный сайт организатора обязан это знать, чтобы скрыть разделы.
-    repeated string disabled_modules = 10;
-    // Организаторский white-label сайт — ТОЛЬКО для ADMIN/владельца-
-    // организации (тот же принцип, что лицензия/комиссия выше), публичные
-    // ответы обязаны вырезать перед отдачей.
-    bool site_enabled = 11;
-    // NONE | VALIDATING | BUILDING | SUCCESS | FAILED
-    string site_build_status = 12;
-    int32 site_overlay_version = 13;
-    string site_built_at = 14;
-    string site_build_error = 15;
+
+    // REMOVED (multi-tenant fields — field numbers reserved):
+    reserved 5;  // domain
+    reserved 6;  // license_key
+    reserved 7;  // license_status
+    reserved 8;  // license_expires_at
+    reserved 9;  // commission_percent
+    reserved 10; // disabled_modules
+    reserved 11; // site_enabled
+    reserved 12; // site_build_status
+    reserved 13; // site_overlay_version
+    reserved 14; // site_built_at
+    reserved 15; // site_build_error
 }

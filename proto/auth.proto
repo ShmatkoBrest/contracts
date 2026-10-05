@@ -50,12 +50,8 @@ message SendOtpRequest {
     // же append-only журналом (ConsentRecord), что и privacy, но под
     // doc_type="marketing" — отзывается независимо в личном кабинете.
     bool marketing_accepted = 4;
-    // Организатор-тенант, резолвленный gateway-service по домену запроса
-    // (TenantResolverMiddleware) — пусто, если вход идёт с общего сайта
-    // платформы. Позволяет notification-service отправить OTP через
-    // собственный SMS/email-шлюз организатора, если он его настроил (см.
-    // notification.v1.NotificationSettingsService.GetOrganizerNotificationSettings).
-    string organizer_id = 5;
+    // REMOVED: organizer_id = 5 (multi-tenant era, TenantResolverMiddleware убран)
+    reserved 5;
 }
 
 // Ответ на отправку OTP.

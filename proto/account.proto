@@ -72,10 +72,8 @@ message GetAccountResponse {
   // string, т.к. роли вынесены в таблицу. Канонический список ключей —
   // `ROLE_KEYS` в @usteam/common.
   string role              = 6;
-  // 3.31.0: organizerId для роли ORGANIZER_ADMIN — единственная организация,
-  // данными которой этот аккаунт вправе управлять в gateway-service. Пусто —
-  // роль без привязки (обычный случай для всех остальных ролей).
-  string organizer_id      = 7;
+  // REMOVED: organizer_id = 7 (ORGANIZER_ADMIN роль убрана)
+  reserved 7;
 
 }
 
@@ -95,12 +93,10 @@ message ListAccountsResponse {
 
 message SetAccountRoleRequest {
   string id   = 1;
-  // Ключ роли (USER | ADMIN | EDITOR | CASHIER | ORGANIZER_ADMIN)
+  // Ключ роли (USER | ADMIN | EDITOR | CASHIER)
   string role = 2;
-  // Обязателен, только если role = ORGANIZER_ADMIN; для любой другой роли
-  // игнорируется и очищается на стороне auth-service (не доверяем клиенту
-  // рассинхронизированную комбинацию роль+организация).
-  string organizer_id = 3;
+  // REMOVED: organizer_id = 3 (ORGANIZER_ADMIN убран)
+  reserved 3;
 }
 
 message Role {
@@ -116,8 +112,8 @@ message ListRolesResponse {
 message InitEmailChangeRequest {
   string email   = 1;
   string user_id = 2;
-  // Организатор-тенант по домену запроса — см. auth.proto SendOtpRequest.organizer_id.
-  string organizer_id = 3;
+  // REMOVED: organizer_id = 3
+  reserved 3;
 }
 
 message InitEmailChangeResponse {
@@ -137,8 +133,8 @@ message ConfirmEmailChangeResponse {
 message InitPhoneChangeRequest {
   string phone   = 1;
   string user_id = 2;
-  // Организатор-тенант по домену запроса — см. auth.proto SendOtpRequest.organizer_id.
-  string organizer_id = 3;
+  // REMOVED: organizer_id = 3
+  reserved 3;
 }
 
 message InitPhoneChangeResponse {

@@ -3,23 +3,15 @@ syntax = "proto3";
 package notification.v1;
 
 // Настройки отправки SMS и email (OTP, смена контакта, письма с билетами).
-// Два уровня: платформенный (общий сайт — Get/Set*Settings) и
-// организаторский (Get/SetOrganizerNotificationSettings — только для
-// организаторов с включённым модулем "notifications", проверяет
-// gateway-service). Организатор не заполнил канал — используются
-// платформенные настройки этого канала. Секреты живут здесь, а не в
-// content.v1 — ListContent там отдаётся ПУБЛИЧНО без авторизации на каждой
-// странице сайта. Вызывается только gateway-service, собственной
-// авторизации нет.
+// Платформенный уровень — единственный. Вызывается только gateway-service,
+// собственной авторизации нет.
+// REMOVED: GetOrganizerNotificationSettings, SetOrganizerNotificationSettings
 service NotificationSettingsService {
     rpc GetSmsSettings (GetSmsSettingsRequest) returns (SmsSettings);
     rpc SetSmsSettings (SetSmsSettingsRequest) returns (SmsSettings);
 
     rpc GetEmailSettings (GetEmailSettingsRequest) returns (EmailSettings);
     rpc SetEmailSettings (SetEmailSettingsRequest) returns (EmailSettings);
-
-    rpc GetOrganizerNotificationSettings (GetOrganizerNotificationSettingsRequest) returns (OrganizerNotificationSettings);
-    rpc SetOrganizerNotificationSettings (SetOrganizerNotificationSettingsRequest) returns (OrganizerNotificationSettings);
 }
 
 message GetSmsSettingsRequest {
@@ -108,29 +100,5 @@ message SetEmailSettingsRequest {
     string from_address = 6;
 }
 
-// ===== Настройки организатора (SMS + email) =====
-
-message GetOrganizerNotificationSettingsRequest {
-    string organizer_id = 1;
-}
-
-// Значения — ЭФФЕКТИВНЫЕ: свои у организатора, если канал настроен, иначе
-// платформенные (то, что реально будет использовано при отправке). Флаги
-// *_configured говорят, свои ли это (true) или унаследованные (false).
-message OrganizerNotificationSettings {
-    string organizer_id = 1;
-    bool sms_configured = 2;
-    SmsSettings sms = 3;
-    bool email_configured = 4;
-    EmailSettings email = 5;
-}
-
-message SetOrganizerNotificationSettingsRequest {
-    string organizer_id = 1;
-    // Канал не передан — не трогать. clear_* — сбросить свои настройки
-    // канала и вернуться к платформенным.
-    optional SetSmsSettingsRequest sms = 2;
-    bool clear_sms = 3;
-    optional SetEmailSettingsRequest email = 4;
-    bool clear_email = 5;
-}
+// REMOVED: OrganizerNotificationSettings, GetOrganizerNotificationSettingsRequest,
+//          SetOrganizerNotificationSettingsRequest (multi-tenant era)
