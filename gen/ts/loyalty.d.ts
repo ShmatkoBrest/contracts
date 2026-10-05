@@ -22,15 +22,12 @@ export declare enum EarnSource {
     SUBSCRIPTION = 1,
     PROMO = 2,
     MANUAL = 3,
-    /** RESALE - 2026-09-21: выплата продавцу при перепродаже места по абонементу. */
     RESALE = 4,
     UNRECOGNIZED = -1
 }
 export interface Balance {
     userId: string;
-    /** Текущий баланс в баллах (= копейки). */
     points: number;
-    /** Сколько баллов сгорит в ближайшие 30 дней. */
     expiringSoon: number;
     expiringAt?: Timestamp | undefined;
 }
@@ -38,23 +35,17 @@ export interface Transaction {
     id: string;
     userId: string;
     kind: TxKind;
-    /**
-     * Знаковое: EARN/REFUND_RETURN/PROMO_BONUS/ADJUST(+) — плюс;
-     * REDEEM/REFUND_CLAWBACK/EXPIRE — минус.
-     */
     points: number;
     source: EarnSource;
-    /** ORDER | SUBSCRIPTION | PROMO */
     refType?: string | undefined;
     refId?: string | undefined;
-    /** Сумма покупки (копейки), от которой начислено — для пропорц. clawback. */
     amount: number;
     note?: string | undefined;
     expiresAt?: Timestamp | undefined;
     createdAt: Timestamp | undefined;
     /**
-     * 2026-09-21: "PLATFORM" — записи без привязки к организатору (промо/
-     * ручные начисления/покупка абонемента целиком), тратятся у любого.
+     * Всегда "PLATFORM" для новых записей (legacy-поле, сохранено для
+     * совместимости с историческими данными).
      */
     organizerId: string;
 }
@@ -75,13 +66,11 @@ export interface PointsResponse {
     points: number;
 }
 export interface TxResponse {
-    /** Пусто, если операция была пропущена как дубликат (идемпотентность). */
     transaction?: Transaction | undefined;
     balance: number;
 }
 export interface HistoryRequest {
     userId: string;
-    /** 1..100, по умолчанию 20 */
     limit: number;
     cursor?: string | undefined;
 }
@@ -92,72 +81,40 @@ export interface HistoryResponse {
 export interface PreviewEarnRequest {
     userId: string;
     source: EarnSource;
-    /** копейки */
     amount: number;
-    /** Для source=TICKET — сеанс, чтобы применить переопределение под событие. */
     screeningId?: string | undefined;
-    /** Для source=TICKET, если screening_id не резолвится — курс организатора. */
-    organizerId?: string | undefined;
 }
 export interface QuoteRedeemRequest {
     userId: string;
-    /** сумма заказа в копейках */
     orderAmount: number;
-    /** сколько баллов хочет списать */
     requestedPoints: number;
-    /** Организатор покупки — определяет доступный для списания бакет(ы). */
-    organizerId?: string | undefined;
 }
 export interface QuoteRedeemResponse {
-    /** Сколько баллов реально спишется (после ограничений). */
     appliedPoints: number;
-    /** Скидка в копейках (= applied_points). */
     discount: number;
-    /**
-     * Причина ограничения, если applied_points < requested_points.
-     * BALANCE | MAX_PERCENT | BELOW_MIN | NO_POINTS_AT_ORGANIZER
-     */
     cappedBy?: string | undefined;
-    /**
-     * Сколько баллов доступно к списанию именно у этого организатора
-     * (свой бакет + PLATFORM + чужие бакеты, если organizer.acceptForeignPoints).
-     */
     spendablePoints: number;
 }
 export interface EarnRequest {
     userId: string;
     source: EarnSource;
-    /** сумма покупки (копейки) */
     amount: number;
-    /** ORDER | SUBSCRIPTION */
     refType: string;
     refId: string;
-    /** для TICKET — переопределение под событие */
     screeningId?: string | undefined;
-    /** Бонус за промокод, начислить одной операцией PROMO_BONUS (копейки). */
     promoBonus: number;
     promoCode?: string | undefined;
-    /**
-     * Организатор покупки — бакет, в который попадёт начисление; также
-     * источник курса начисления, если screening_id не резолвится в событие.
-     * Пусто → бакет "PLATFORM" (тратится у любого организатора).
-     */
-    organizerId?: string | undefined;
 }
 export interface PromoBonusRequest {
     userId: string;
     promoCode: string;
     points: number;
-    /** например bookingId, для идемпотентности */
     refId?: string | undefined;
 }
 export interface RedeemRequest {
     userId: string;
     points: number;
-    /** bookingId / orderId */
     refId: string;
-    /** Организатор покупки — определяет порядок списания по бакетам. */
-    organizerId?: string | undefined;
 }
 export interface RedeemResponse {
     redeemed: number;
@@ -165,25 +122,18 @@ export interface RedeemResponse {
 }
 export interface RefundAdjustRequest {
     userId: string;
-    /** тот же ref_id, что при Earn/Redeem */
     refId: string;
-    /** сумма возврата (копейки) */
     refundedAmount: number;
-    /** исходная сумма заказа (копейки) */
     totalAmount: number;
 }
 export interface RefundAdjustResponse {
-    /** сколько начисленного снято */
     clawedBack: number;
-    /** сколько списанного возвращено */
     returned: number;
     balance: number;
 }
 export interface LoyaltyRule {
-    /** Синглтон. */
     ticketEarnPercent: number;
     subscriptionEarnPercent: number;
-    /** макс. доля заказа, оплачиваемая баллами */
     maxRedeemPercent: number;
     minRedeemPoints: number;
     expiryMonths: number;
@@ -199,7 +149,6 @@ export interface UpdateRuleRequest {
 export interface EventRule {
     id: string;
     eventId: string;
-    /** Переопределяет ticket_earn_percent для этого события (0 = не начислять). */
     earnPercent: number;
 }
 export interface EventRulesResponse {
@@ -211,51 +160,12 @@ export interface SetEventRuleRequest {
 }
 export interface AdjustRequest {
     userId: string;
-    /** знаковое */
     points: number;
     note: string;
-    /** Пусто → бакет "PLATFORM". */
-    organizerId?: string | undefined;
-}
-export interface OrganizerIdRequest {
-    organizerId: string;
-}
-export interface OrganizerRule {
-    id: string;
-    organizerId: string;
-    /** null = используется платформенный ticket_earn_percent. */
-    earnPercent?: number | undefined;
-    /** Принимает ли этот организатор к оплате баллы, заработанные у других. */
-    acceptForeignPoints: boolean;
-}
-export interface OrganizerRulesResponse {
-    rules: OrganizerRule[];
-}
-export interface SetOrganizerRuleRequest {
-    organizerId: string;
-    earnPercent?: number | undefined;
-    acceptForeignPoints: boolean;
-    /**
-     * true — явно сбросить earn_percent в null (вернуться к платформенному
-     * курсу), тот же приём, что и у organizer.v1.SetOrganizerCommissionRequest.clear.
-     */
-    clearEarnPercent: boolean;
-}
-export interface OrganizerBalance {
-    organizerId: string;
-    points: number;
-}
-export interface OrganizerBalancesResponse {
-    userId: string;
-    /** сумма по всем бакетам (= GetBalance.points) */
-    total: number;
-    buckets: OrganizerBalance[];
 }
 export interface CreditPointsRequest {
     userId: string;
-    /** абсолютное количество, не процент */
     points: number;
-    organizerId: string;
     source: EarnSource;
     refType: string;
     refId: string;
@@ -271,6 +181,10 @@ export declare const LOYALTY_V1_PACKAGE_NAME = "loyalty.v1";
  * Все интеграционные вызовы (Earn/Redeem/RefundAdjust) идемпотентны по
  * (kind, ref_id) и вызывающая сторона обязана обрабатывать сбой мягко —
  * недоступность loyalty-service не должна блокировать покупку/возврат.
+ *
+ * 4.1.0: single-organizer — OrganizerRule / GetOrganizerBalances и organizer_id
+ * из всех request-сообщений удалены. Transaction.organizer_id остался в
+ * response (исторические данные), всегда "PLATFORM" для новых записей.
  */
 export interface LoyaltyServiceClient {
     /** --- Чтение (пользователь) --- */
@@ -302,25 +216,7 @@ export interface LoyaltyServiceClient {
     deleteEventRule(request: IdRequest): Observable<SimpleResponse>;
     /** Ручная корректировка баланса (+/-), например компенсация. */
     adjust(request: AdjustRequest): Observable<TxResponse>;
-    /**
-     * --- 2026-09-21: организатор-скоуп бонусной программы ---
-     * Курс начисления (earn_percent) + разрешение принимать чужие баллы
-     * (accept_foreign_points) на организатора. Списание везде идёт по
-     * единому платформенному курсу (1 балл = 1 копейка) — это НЕ ставка.
-     */
-    getOrganizerRule(request: OrganizerIdRequest): Observable<OrganizerRule>;
-    listOrganizerRules(request: Empty): Observable<OrganizerRulesResponse>;
-    setOrganizerRule(request: SetOrganizerRuleRequest): Observable<OrganizerRule>;
-    deleteOrganizerRule(request: IdRequest): Observable<SimpleResponse>;
-    /** Баланс с разбивкой по организаторам (для личного кабинета/чекаута). */
-    getOrganizerBalances(request: UserRequest): Observable<OrganizerBalancesResponse>;
-    /**
-     * Начислить АБСОЛЮТНОЕ число баллов (не процент от суммы) — например,
-     * выплата продавцу при перепродаже места по абонементу. Отдельно от
-     * Adjust (тот не принимает ref_id — ретрай вызова начислил бы дважды) и
-     * от GrantPromoBonus (та пишет kind=PROMO_BONUS, здесь нужен EARN, чтобы
-     * попасть под обычный цикл сгорания баллов).
-     */
+    /** Начислить АБСОЛЮТНОЕ число баллов (не процент от суммы). */
     creditPoints(request: CreditPointsRequest): Observable<TxResponse>;
 }
 /**
@@ -332,6 +228,10 @@ export interface LoyaltyServiceClient {
  * Все интеграционные вызовы (Earn/Redeem/RefundAdjust) идемпотентны по
  * (kind, ref_id) и вызывающая сторона обязана обрабатывать сбой мягко —
  * недоступность loyalty-service не должна блокировать покупку/возврат.
+ *
+ * 4.1.0: single-organizer — OrganizerRule / GetOrganizerBalances и organizer_id
+ * из всех request-сообщений удалены. Transaction.organizer_id остался в
+ * response (исторические данные), всегда "PLATFORM" для новых записей.
  */
 export interface LoyaltyServiceController {
     /** --- Чтение (пользователь) --- */
@@ -363,25 +263,7 @@ export interface LoyaltyServiceController {
     deleteEventRule(request: IdRequest): Promise<SimpleResponse> | Observable<SimpleResponse> | SimpleResponse;
     /** Ручная корректировка баланса (+/-), например компенсация. */
     adjust(request: AdjustRequest): Promise<TxResponse> | Observable<TxResponse> | TxResponse;
-    /**
-     * --- 2026-09-21: организатор-скоуп бонусной программы ---
-     * Курс начисления (earn_percent) + разрешение принимать чужие баллы
-     * (accept_foreign_points) на организатора. Списание везде идёт по
-     * единому платформенному курсу (1 балл = 1 копейка) — это НЕ ставка.
-     */
-    getOrganizerRule(request: OrganizerIdRequest): Promise<OrganizerRule> | Observable<OrganizerRule> | OrganizerRule;
-    listOrganizerRules(request: Empty): Promise<OrganizerRulesResponse> | Observable<OrganizerRulesResponse> | OrganizerRulesResponse;
-    setOrganizerRule(request: SetOrganizerRuleRequest): Promise<OrganizerRule> | Observable<OrganizerRule> | OrganizerRule;
-    deleteOrganizerRule(request: IdRequest): Promise<SimpleResponse> | Observable<SimpleResponse> | SimpleResponse;
-    /** Баланс с разбивкой по организаторам (для личного кабинета/чекаута). */
-    getOrganizerBalances(request: UserRequest): Promise<OrganizerBalancesResponse> | Observable<OrganizerBalancesResponse> | OrganizerBalancesResponse;
-    /**
-     * Начислить АБСОЛЮТНОЕ число баллов (не процент от суммы) — например,
-     * выплата продавцу при перепродаже места по абонементу. Отдельно от
-     * Adjust (тот не принимает ref_id — ретрай вызова начислил бы дважды) и
-     * от GrantPromoBonus (та пишет kind=PROMO_BONUS, здесь нужен EARN, чтобы
-     * попасть под обычный цикл сгорания баллов).
-     */
+    /** Начислить АБСОЛЮТНОЕ число баллов (не процент от суммы). */
     creditPoints(request: CreditPointsRequest): Promise<TxResponse> | Observable<TxResponse> | TxResponse;
 }
 export declare function LoyaltyServiceControllerMethods(): (constructor: Function) => void;

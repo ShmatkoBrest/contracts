@@ -13,6 +13,10 @@ import "google/protobuf/timestamp.proto";
 // Все интеграционные вызовы (Earn/Redeem/RefundAdjust) идемпотентны по
 // (kind, ref_id) и вызывающая сторона обязана обрабатывать сбой мягко —
 // недоступность loyalty-service не должна блокировать покупку/возврат.
+//
+// 4.1.0: single-organizer — OrganizerRule / GetOrganizerBalances и organizer_id
+// из всех request-сообщений удалены. Transaction.organizer_id остался в
+// response (исторические данные), всегда "PLATFORM" для новых записей.
 service LoyaltyService {
     // --- Чтение (пользователь) ---
     rpc GetBalance (UserRequest) returns (Balance);
@@ -41,22 +45,7 @@ service LoyaltyService {
     rpc DeleteEventRule (IdRequest) returns (SimpleResponse);
     // Ручная корректировка баланса (+/-), например компенсация.
     rpc Adjust (AdjustRequest) returns (TxResponse);
-
-    // --- 2026-09-21: организатор-скоуп бонусной программы ---
-    // Курс начисления (earn_percent) + разрешение принимать чужие баллы
-    // (accept_foreign_points) на организатора. Списание везде идёт по
-    // единому платформенному курсу (1 балл = 1 копейка) — это НЕ ставка.
-    rpc GetOrganizerRule (OrganizerIdRequest) returns (OrganizerRule);
-    rpc ListOrganizerRules (google.protobuf.Empty) returns (OrganizerRulesResponse);
-    rpc SetOrganizerRule (SetOrganizerRuleRequest) returns (OrganizerRule);
-    rpc DeleteOrganizerRule (IdRequest) returns (SimpleResponse);
-    // Баланс с разбивкой по организаторам (для личного кабинета/чекаута).
-    rpc GetOrganizerBalances (UserRequest) returns (OrganizerBalancesResponse);
-    // Начислить АБСОЛЮТНОЕ число баллов (не процент от суммы) — например,
-    // выплата продавцу при перепродаже места по абонементу. Отдельно от
-    // Adjust (тот не принимает ref_id — ретрай вызова начислил бы дважды) и
-    // от GrantPromoBonus (та пишет kind=PROMO_BONUS, здесь нужен EARN, чтобы
-    // попасть под обычный цикл сгорания баллов).
+    // Начислить АБСОЛЮТНОЕ число баллов (не процент от суммы).
     rpc CreditPoints (CreditPointsRequest) returns (TxResponse);
 }
 
@@ -78,15 +67,12 @@ enum EarnSource {
     SUBSCRIPTION = 1;
     PROMO = 2;
     MANUAL = 3;
-    // 2026-09-21: выплата продавцу при перепродаже места по абонементу.
     RESALE = 4;
 }
 
 message Balance {
     string user_id = 1;
-    // Текущий баланс в баллах (= копейки).
     int32 points = 2;
-    // Сколько баллов сгорит в ближайшие 30 дней.
     int32 expiring_soon = 3;
     optional google.protobuf.Timestamp expiring_at = 4;
 }
@@ -95,19 +81,16 @@ message Transaction {
     string id = 1;
     string user_id = 2;
     TxKind kind = 3;
-    // Знаковое: EARN/REFUND_RETURN/PROMO_BONUS/ADJUST(+) — плюс;
-    // REDEEM/REFUND_CLAWBACK/EXPIRE — минус.
     int32 points = 4;
     EarnSource source = 5;
-    optional string ref_type = 6;   // ORDER | SUBSCRIPTION | PROMO
+    optional string ref_type = 6;
     optional string ref_id = 7;
-    // Сумма покупки (копейки), от которой начислено — для пропорц. clawback.
     int32 amount = 8;
     optional string note = 9;
     optional google.protobuf.Timestamp expires_at = 10;
     google.protobuf.Timestamp created_at = 11;
-    // 2026-09-21: "PLATFORM" — записи без привязки к организатору (промо/
-    // ручные начисления/покупка абонемента целиком), тратятся у любого.
+    // Всегда "PLATFORM" для новых записей (legacy-поле, сохранено для
+    // совместимости с историческими данными).
     string organizer_id = 12;
 }
 
@@ -120,14 +103,13 @@ message RefRequest {
 message SimpleResponse { bool ok = 1; }
 message PointsResponse { int32 points = 1; }
 message TxResponse {
-    // Пусто, если операция была пропущена как дубликат (идемпотентность).
     optional Transaction transaction = 1;
     int32 balance = 2;
 }
 
 message HistoryRequest {
     string user_id = 1;
-    int32 limit = 2;         // 1..100, по умолчанию 20
+    int32 limit = 2;
     optional string cursor = 3;
 }
 message HistoryResponse {
@@ -138,63 +120,48 @@ message HistoryResponse {
 message PreviewEarnRequest {
     string user_id = 1;
     EarnSource source = 2;
-    int32 amount = 3;                 // копейки
-    // Для source=TICKET — сеанс, чтобы применить переопределение под событие.
+    int32 amount = 3;
     optional string screening_id = 4;
-    // Для source=TICKET, если screening_id не резолвится — курс организатора.
-    optional string organizer_id = 5;
+    reserved 5; // organizer_id removed in 4.1.0
 }
 
 message QuoteRedeemRequest {
     string user_id = 1;
-    int32 order_amount = 2;           // сумма заказа в копейках
-    int32 requested_points = 3;       // сколько баллов хочет списать
-    // Организатор покупки — определяет доступный для списания бакет(ы).
-    optional string organizer_id = 4;
+    int32 order_amount = 2;
+    int32 requested_points = 3;
+    reserved 4; // organizer_id removed in 4.1.0
 }
 message QuoteRedeemResponse {
-    // Сколько баллов реально спишется (после ограничений).
     int32 applied_points = 1;
-    // Скидка в копейках (= applied_points).
     int32 discount = 2;
-    // Причина ограничения, если applied_points < requested_points.
-    // BALANCE | MAX_PERCENT | BELOW_MIN | NO_POINTS_AT_ORGANIZER
     optional string capped_by = 3;
-    // Сколько баллов доступно к списанию именно у этого организатора
-    // (свой бакет + PLATFORM + чужие бакеты, если organizer.acceptForeignPoints).
     int32 spendable_points = 4;
 }
 
 message EarnRequest {
     string user_id = 1;
     EarnSource source = 2;
-    int32 amount = 3;                 // сумма покупки (копейки)
-    string ref_type = 4;             // ORDER | SUBSCRIPTION
+    int32 amount = 3;
+    string ref_type = 4;
     string ref_id = 5;
-    optional string screening_id = 6; // для TICKET — переопределение под событие
-    // Бонус за промокод, начислить одной операцией PROMO_BONUS (копейки).
+    optional string screening_id = 6;
     int32 promo_bonus = 7;
     optional string promo_code = 8;
-    // Организатор покупки — бакет, в который попадёт начисление; также
-    // источник курса начисления, если screening_id не резолвится в событие.
-    // Пусто → бакет "PLATFORM" (тратится у любого организатора).
-    optional string organizer_id = 9;
+    reserved 9; // organizer_id removed in 4.1.0
 }
 
 message PromoBonusRequest {
     string user_id = 1;
     string promo_code = 2;
     int32 points = 3;
-    optional string ref_id = 4;      // например bookingId, для идемпотентности
-    // Промо всегда в бакет "PLATFORM" — поле не добавляется намеренно.
+    optional string ref_id = 4;
 }
 
 message RedeemRequest {
     string user_id = 1;
     int32 points = 2;
-    string ref_id = 3;               // bookingId / orderId
-    // Организатор покупки — определяет порядок списания по бакетам.
-    optional string organizer_id = 4;
+    string ref_id = 3;
+    reserved 4; // organizer_id removed in 4.1.0
 }
 message RedeemResponse {
     int32 redeemed = 1;
@@ -203,21 +170,20 @@ message RedeemResponse {
 
 message RefundAdjustRequest {
     string user_id = 1;
-    string ref_id = 2;               // тот же ref_id, что при Earn/Redeem
-    int32 refunded_amount = 3;       // сумма возврата (копейки)
-    int32 total_amount = 4;          // исходная сумма заказа (копейки)
+    string ref_id = 2;
+    int32 refunded_amount = 3;
+    int32 total_amount = 4;
 }
 message RefundAdjustResponse {
-    int32 clawed_back = 1;           // сколько начисленного снято
-    int32 returned = 2;             // сколько списанного возвращено
+    int32 clawed_back = 1;
+    int32 returned = 2;
     int32 balance = 3;
 }
 
 message LoyaltyRule {
-    // Синглтон.
     double ticket_earn_percent = 1;
     double subscription_earn_percent = 2;
-    double max_redeem_percent = 3;   // макс. доля заказа, оплачиваемая баллами
+    double max_redeem_percent = 3;
     int32 min_redeem_points = 4;
     int32 expiry_months = 5;
     google.protobuf.Timestamp updated_at = 6;
@@ -233,7 +199,6 @@ message UpdateRuleRequest {
 message EventRule {
     string id = 1;
     string event_id = 2;
-    // Переопределяет ticket_earn_percent для этого события (0 = не начислять).
     double earn_percent = 3;
 }
 message EventRulesResponse { repeated EventRule rules = 1; }
@@ -244,48 +209,15 @@ message SetEventRuleRequest {
 
 message AdjustRequest {
     string user_id = 1;
-    int32 points = 2;               // знаковое
-    string note = 3;
-    // Пусто → бакет "PLATFORM".
-    optional string organizer_id = 4;
-}
-
-// ===== 2026-09-21: организатор-скоуп бонусной программы =====
-
-message OrganizerIdRequest { string organizer_id = 1; }
-
-message OrganizerRule {
-    string id = 1;
-    string organizer_id = 2;
-    // null = используется платформенный ticket_earn_percent.
-    optional double earn_percent = 3;
-    // Принимает ли этот организатор к оплате баллы, заработанные у других.
-    bool accept_foreign_points = 4;
-}
-message OrganizerRulesResponse { repeated OrganizerRule rules = 1; }
-message SetOrganizerRuleRequest {
-    string organizer_id = 1;
-    optional double earn_percent = 2;
-    bool accept_foreign_points = 3;
-    // true — явно сбросить earn_percent в null (вернуться к платформенному
-    // курсу), тот же приём, что и у organizer.v1.SetOrganizerCommissionRequest.clear.
-    bool clear_earn_percent = 4;
-}
-
-message OrganizerBalance {
-    string organizer_id = 1;
     int32 points = 2;
-}
-message OrganizerBalancesResponse {
-    string user_id = 1;
-    int32 total = 2;               // сумма по всем бакетам (= GetBalance.points)
-    repeated OrganizerBalance buckets = 3;
+    string note = 3;
+    reserved 4; // organizer_id removed in 4.1.0
 }
 
 message CreditPointsRequest {
     string user_id = 1;
-    int32 points = 2;               // абсолютное количество, не процент
-    string organizer_id = 3;
+    int32 points = 2;
+    reserved 3; // organizer_id removed in 4.1.0 (always "PLATFORM")
     EarnSource source = 4;
     string ref_type = 5;
     string ref_id = 6;

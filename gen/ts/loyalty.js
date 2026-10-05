@@ -32,7 +32,6 @@ var EarnSource;
     EarnSource[EarnSource["SUBSCRIPTION"] = 1] = "SUBSCRIPTION";
     EarnSource[EarnSource["PROMO"] = 2] = "PROMO";
     EarnSource[EarnSource["MANUAL"] = 3] = "MANUAL";
-    /** RESALE - 2026-09-21: выплата продавцу при перепродаже места по абонементу. */
     EarnSource[EarnSource["RESALE"] = 4] = "RESALE";
     EarnSource[EarnSource["UNRECOGNIZED"] = -1] = "UNRECOGNIZED";
 })(EarnSource || (exports.EarnSource = EarnSource = {}));
@@ -55,11 +54,6 @@ function LoyaltyServiceControllerMethods() {
             "setEventRule",
             "deleteEventRule",
             "adjust",
-            "getOrganizerRule",
-            "listOrganizerRules",
-            "setOrganizerRule",
-            "deleteOrganizerRule",
-            "getOrganizerBalances",
             "creditPoints",
         ];
         for (const method of grpcMethods) {
