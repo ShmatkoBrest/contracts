@@ -9,14 +9,9 @@ package content.v1;
 // Живёт в event-service (уже владеет общедоступным контентом каталога,
 // заводить отдельный сервис ради одной таблицы избыточно).
 //
-// 3.28.0: "коробочная" платформа — organizer_id как измерение у ListContent/
-// SetContent/GetPageLayout/SetPageLayout. Пусто = платформенный дефолт
-// (общий сайт всех событий); задан = свой бренд организатора (домен/
-// поддомен резолвится в organizer_id на gateway-service, см.
-// organizer.proto GetOrganizerByDomain). ListContent/GetPageLayout с
-// заданным organizer_id возвращают УЖЕ СМЕРЖЕННЫЙ результат (переопределения
-// организатора поверх платформенных, как у per-event/per-organizer
-// шаблонов) — вызывающая сторона не должна мержить сама.
+// 4.1.0: single-organizer — organizer_id убран из всех запросов.
+// Данные хранятся с организатором '' (платформенный дефолт), merge-логика
+// удалена.
 service ContentService {
     // Публично, без авторизации — читает вся публичная часть сайта.
     rpc ListContent (ListContentRequest) returns (ListContentResponse);
@@ -33,11 +28,7 @@ service ContentService {
     // вёрстке страницы).
     rpc SetPageLayout (SetPageLayoutRequest) returns (SetPageLayoutResponse);
 
-    // 3.51.0: колонки меню футера (заголовок + список ссылок), тот же
-    // organizer_id-паттерн, что у PageLayout — организатор либо целиком
-    // переопределяет платформенные колонки своими, либо (нет своих)
-    // наследует платформенные. Набор/смысл ссылок платформа не знает —
-    // просто хранит то, что ввёл админ.
+    // 3.51.0: колонки меню футера (заголовок + список ссылок).
     rpc GetFooterMenu (GetFooterMenuRequest) returns (GetFooterMenuResponse);
     // ADMIN. Пустой columns[] — удалить переопределение (вернуться к
     // платформенным колонкам футера).
@@ -50,9 +41,7 @@ message ContentEntry {
 }
 
 message ListContentRequest {
-    // 3.28.0: пусто — платформенный дефолт; иначе — бренд организатора
-    // (смержено поверх платформенного).
-    string organizer_id = 1;
+    reserved 1; // organizer_id removed in 4.1.0
 }
 
 message ListContentResponse {
@@ -61,7 +50,7 @@ message ListContentResponse {
 
 message SetContentRequest {
     repeated ContentEntry entries = 1;
-    string organizer_id = 2;
+    reserved 2; // organizer_id removed in 4.1.0
 }
 
 message SetContentResponse {
@@ -78,7 +67,7 @@ message LayoutBlock {
 message GetPageLayoutRequest {
     // "home" | "event" | ... — любой ключ страницы, сервис не валидирует.
     string page = 1;
-    string organizer_id = 2;
+    reserved 2; // organizer_id removed in 4.1.0
 }
 
 message GetPageLayoutResponse {
@@ -91,7 +80,7 @@ message GetPageLayoutResponse {
 message SetPageLayoutRequest {
     string page = 1;
     repeated LayoutBlock blocks = 2;
-    string organizer_id = 3;
+    reserved 3; // organizer_id removed in 4.1.0
 }
 
 message SetPageLayoutResponse {
@@ -109,23 +98,19 @@ message FooterColumn {
 }
 
 message GetFooterMenuRequest {
-    // Пусто — платформенный дефолт; иначе — бренд организатора (если у него
-    // нет своих колонок — сервис сам вернёт платформенные, см. комментарий
-    // у RPC).
-    string organizer_id = 1;
+    reserved 1; // organizer_id removed in 4.1.0
 }
 
 message GetFooterMenuResponse {
     // Порядок массива — порядок отображения колонок; порядок links внутри
-    // колонки — порядок отображения ссылок. Пусто — переопределения нет
-    // нигде (ни у организатора, ни на платформе).
+    // колонки — порядок отображения ссылок. Пусто — переопределения нет.
     repeated FooterColumn columns = 1;
     bool is_override = 2;
 }
 
 message SetFooterMenuRequest {
     repeated FooterColumn columns = 1;
-    string organizer_id = 2;
+    reserved 2; // organizer_id removed in 4.1.0
 }
 
 message SetFooterMenuResponse {
