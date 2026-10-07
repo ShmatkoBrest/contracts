@@ -28,6 +28,10 @@ export interface Organizer {
   title: string;
   description: string;
   image: string;
+  /** УНП (учётный номер плательщика) — подставляется в подпись email-писем. */
+  unp: string;
+  /** Свой домен/поддомен организатора (резолв тенанта по Host-заголовку). */
+  domain: string;
 }
 
 export interface GetOrganizerLicenseRequest {
@@ -93,6 +97,24 @@ export interface SetOrganizerModulesRequest {
   disabledModules: string[];
 }
 
+export interface UpdateOrganizerRequest {
+  organizerId: string;
+  title?: string | undefined;
+  description?: string | undefined;
+  image?: string | undefined;
+  domain?: string | undefined;
+  unp?: string | undefined;
+}
+
+export interface UpdateOrganizerResponse {
+  organizerId: string;
+  title: string;
+  description: string;
+  image: string;
+  domain: string;
+  unp: string;
+}
+
 export const ORGANIZER_V1_PACKAGE_NAME = "organizer.v1";
 
 /** Сервис для работы с организаторами событий. */
@@ -119,6 +141,10 @@ export interface OrganizerServiceClient {
   getOrganizerModules(request: GetOrganizerModulesRequest): Observable<GetOrganizerModulesResponse>;
 
   setOrganizerModules(request: SetOrganizerModulesRequest): Observable<GetOrganizerModulesResponse>;
+
+  /** Обновление профиля организатора (title, description, image, domain, unp). */
+
+  updateOrganizer(request: UpdateOrganizerRequest): Observable<UpdateOrganizerResponse>;
 }
 
 /** Сервис для работы с организаторами событий. */
@@ -167,6 +193,12 @@ export interface OrganizerServiceController {
   setOrganizerModules(
     request: SetOrganizerModulesRequest,
   ): Promise<GetOrganizerModulesResponse> | Observable<GetOrganizerModulesResponse> | GetOrganizerModulesResponse;
+
+  /** Обновление профиля организатора (title, description, image, domain, unp). */
+
+  updateOrganizer(
+    request: UpdateOrganizerRequest,
+  ): Promise<UpdateOrganizerResponse> | Observable<UpdateOrganizerResponse> | UpdateOrganizerResponse;
 }
 
 export function OrganizerServiceControllerMethods() {
@@ -180,6 +212,7 @@ export function OrganizerServiceControllerMethods() {
       "setOrganizerCommission",
       "getOrganizerModules",
       "setOrganizerModules",
+      "updateOrganizer",
     ];
     for (const method of grpcMethods) {
       const descriptor: any = Reflect.getOwnPropertyDescriptor(constructor.prototype, method);

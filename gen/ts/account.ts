@@ -195,6 +195,18 @@ export interface ListConsentHistoryResponse {
   entries: ConsentEntry[];
 }
 
+export interface AuthSettingsResponse {
+  /**
+   * Время жизни сессии пользователя в днях.
+   * Дефолт — 14, максимум — 90.
+   */
+  sessionTtlDays: number;
+}
+
+export interface SetAuthSettingsRequest {
+  sessionTtlDays: number;
+}
+
 export const ACCOUNT_V1_PACKAGE_NAME = "account.v1";
 
 /** AccountService отвечает за операции с аккаунтом. */
@@ -280,6 +292,15 @@ export interface AccountServiceClient {
    */
 
   listConsentHistory(request: ListConsentHistoryRequest): Observable<ListConsentHistoryResponse>;
+
+  /**
+   * ADMIN. Настройки аутентификации: время жизни сессии пользователя.
+   * Дефолт — 14 дней, максимум — 90 дней.
+   */
+
+  getAuthSettings(request: Empty): Observable<AuthSettingsResponse>;
+
+  setAuthSettings(request: SetAuthSettingsRequest): Observable<AuthSettingsResponse>;
 }
 
 /** AccountService отвечает за операции с аккаунтом. */
@@ -391,6 +412,19 @@ export interface AccountServiceController {
   listConsentHistory(
     request: ListConsentHistoryRequest,
   ): Promise<ListConsentHistoryResponse> | Observable<ListConsentHistoryResponse> | ListConsentHistoryResponse;
+
+  /**
+   * ADMIN. Настройки аутентификации: время жизни сессии пользователя.
+   * Дефолт — 14 дней, максимум — 90 дней.
+   */
+
+  getAuthSettings(
+    request: Empty,
+  ): Promise<AuthSettingsResponse> | Observable<AuthSettingsResponse> | AuthSettingsResponse;
+
+  setAuthSettings(
+    request: SetAuthSettingsRequest,
+  ): Promise<AuthSettingsResponse> | Observable<AuthSettingsResponse> | AuthSettingsResponse;
 }
 
 export function AccountServiceControllerMethods() {
@@ -410,6 +444,8 @@ export function AccountServiceControllerMethods() {
       "giveConsent",
       "withdrawConsent",
       "listConsentHistory",
+      "getAuthSettings",
+      "setAuthSettings",
     ];
     for (const method of grpcMethods) {
       const descriptor: any = Reflect.getOwnPropertyDescriptor(constructor.prototype, method);

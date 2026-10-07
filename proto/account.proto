@@ -55,6 +55,11 @@ service AccountService {
     // Полная история согласий/отзывов аккаунта — реализация права
     // «запросить информацию об обработке своих данных».
     rpc ListConsentHistory(ListConsentHistoryRequest) returns (ListConsentHistoryResponse);
+
+    // ADMIN. Настройки аутентификации: время жизни сессии пользователя.
+    // Дефолт — 14 дней, максимум — 90 дней.
+    rpc GetAuthSettings (google.protobuf.Empty) returns (AuthSettingsResponse);
+    rpc SetAuthSettings (SetAuthSettingsRequest) returns (AuthSettingsResponse);
 }
 
 message GetAccountRequest {
@@ -231,4 +236,16 @@ message ConsentEntry {
 
 message ListConsentHistoryResponse {
   repeated ConsentEntry entries = 1;
+}
+
+// ===== Настройки аутентификации =====
+
+message AuthSettingsResponse {
+  // Время жизни сессии пользователя в днях.
+  // Дефолт — 14, максимум — 90.
+  int32 session_ttl_days = 1;
+}
+
+message SetAuthSettingsRequest {
+  int32 session_ttl_days = 1;
 }

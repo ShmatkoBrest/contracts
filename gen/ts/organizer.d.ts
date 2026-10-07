@@ -15,6 +15,10 @@ export interface Organizer {
     title: string;
     description: string;
     image: string;
+    /** УНП (учётный номер плательщика) — подставляется в подпись email-писем. */
+    unp: string;
+    /** Свой домен/поддомен организатора (резолв тенанта по Host-заголовку). */
+    domain: string;
 }
 export interface GetOrganizerLicenseRequest {
     organizerId: string;
@@ -67,6 +71,22 @@ export interface SetOrganizerModulesRequest {
     organizerId: string;
     disabledModules: string[];
 }
+export interface UpdateOrganizerRequest {
+    organizerId: string;
+    title?: string | undefined;
+    description?: string | undefined;
+    image?: string | undefined;
+    domain?: string | undefined;
+    unp?: string | undefined;
+}
+export interface UpdateOrganizerResponse {
+    organizerId: string;
+    title: string;
+    description: string;
+    image: string;
+    domain: string;
+    unp: string;
+}
 export declare const ORGANIZER_V1_PACKAGE_NAME = "organizer.v1";
 /** Сервис для работы с организаторами событий. */
 export interface OrganizerServiceClient {
@@ -81,6 +101,8 @@ export interface OrganizerServiceClient {
     /** Отключённые модули организатора (news, subscriptions, loyalty, ...). */
     getOrganizerModules(request: GetOrganizerModulesRequest): Observable<GetOrganizerModulesResponse>;
     setOrganizerModules(request: SetOrganizerModulesRequest): Observable<GetOrganizerModulesResponse>;
+    /** Обновление профиля организатора (title, description, image, domain, unp). */
+    updateOrganizer(request: UpdateOrganizerRequest): Observable<UpdateOrganizerResponse>;
 }
 /** Сервис для работы с организаторами событий. */
 export interface OrganizerServiceController {
@@ -95,6 +117,8 @@ export interface OrganizerServiceController {
     /** Отключённые модули организатора (news, subscriptions, loyalty, ...). */
     getOrganizerModules(request: GetOrganizerModulesRequest): Promise<GetOrganizerModulesResponse> | Observable<GetOrganizerModulesResponse> | GetOrganizerModulesResponse;
     setOrganizerModules(request: SetOrganizerModulesRequest): Promise<GetOrganizerModulesResponse> | Observable<GetOrganizerModulesResponse> | GetOrganizerModulesResponse;
+    /** Обновление профиля организатора (title, description, image, domain, unp). */
+    updateOrganizer(request: UpdateOrganizerRequest): Promise<UpdateOrganizerResponse> | Observable<UpdateOrganizerResponse> | UpdateOrganizerResponse;
 }
 export declare function OrganizerServiceControllerMethods(): (constructor: Function) => void;
 export declare const ORGANIZER_SERVICE_NAME = "OrganizerService";

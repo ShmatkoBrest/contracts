@@ -28,6 +28,8 @@ function AccountServiceControllerMethods() {
             "giveConsent",
             "withdrawConsent",
             "listConsentHistory",
+            "getAuthSettings",
+            "setAuthSettings",
         ];
         for (const method of grpcMethods) {
             const descriptor = Reflect.getOwnPropertyDescriptor(constructor.prototype, method);
