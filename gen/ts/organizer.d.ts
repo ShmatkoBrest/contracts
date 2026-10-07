@@ -56,6 +56,17 @@ export interface SetOrganizerCommissionRequest {
     /** true — убрать ставку (вернуться к дефолту) */
     clear: boolean;
 }
+export interface GetOrganizerModulesRequest {
+    organizerId: string;
+}
+export interface GetOrganizerModulesResponse {
+    organizerId: string;
+    disabledModules: string[];
+}
+export interface SetOrganizerModulesRequest {
+    organizerId: string;
+    disabledModules: string[];
+}
 export declare const ORGANIZER_V1_PACKAGE_NAME = "organizer.v1";
 /** Сервис для работы с организаторами событий. */
 export interface OrganizerServiceClient {
@@ -67,6 +78,9 @@ export interface OrganizerServiceClient {
     /** Ставка комиссии платформы для организатора (для отчёта и ручного выставления). */
     getOrganizerCommission(request: GetOrganizerCommissionRequest): Observable<GetOrganizerCommissionResponse>;
     setOrganizerCommission(request: SetOrganizerCommissionRequest): Observable<GetOrganizerCommissionResponse>;
+    /** Отключённые модули организатора (news, subscriptions, loyalty, ...). */
+    getOrganizerModules(request: GetOrganizerModulesRequest): Observable<GetOrganizerModulesResponse>;
+    setOrganizerModules(request: SetOrganizerModulesRequest): Observable<GetOrganizerModulesResponse>;
 }
 /** Сервис для работы с организаторами событий. */
 export interface OrganizerServiceController {
@@ -78,6 +92,9 @@ export interface OrganizerServiceController {
     /** Ставка комиссии платформы для организатора (для отчёта и ручного выставления). */
     getOrganizerCommission(request: GetOrganizerCommissionRequest): Promise<GetOrganizerCommissionResponse> | Observable<GetOrganizerCommissionResponse> | GetOrganizerCommissionResponse;
     setOrganizerCommission(request: SetOrganizerCommissionRequest): Promise<GetOrganizerCommissionResponse> | Observable<GetOrganizerCommissionResponse> | GetOrganizerCommissionResponse;
+    /** Отключённые модули организатора (news, subscriptions, loyalty, ...). */
+    getOrganizerModules(request: GetOrganizerModulesRequest): Promise<GetOrganizerModulesResponse> | Observable<GetOrganizerModulesResponse> | GetOrganizerModulesResponse;
+    setOrganizerModules(request: SetOrganizerModulesRequest): Promise<GetOrganizerModulesResponse> | Observable<GetOrganizerModulesResponse> | GetOrganizerModulesResponse;
 }
 export declare function OrganizerServiceControllerMethods(): (constructor: Function) => void;
 export declare const ORGANIZER_SERVICE_NAME = "OrganizerService";

@@ -17,6 +17,10 @@ service OrganizerService {
     rpc GetOrganizerCommission (GetOrganizerCommissionRequest) returns (GetOrganizerCommissionResponse);
     rpc SetOrganizerCommission (SetOrganizerCommissionRequest) returns (GetOrganizerCommissionResponse);
 
+    // Отключённые модули организатора (news, subscriptions, loyalty, ...).
+    rpc GetOrganizerModules (GetOrganizerModulesRequest) returns (GetOrganizerModulesResponse);
+    rpc SetOrganizerModules (SetOrganizerModulesRequest) returns (GetOrganizerModulesResponse);
+
     // REMOVED (multi-tenant era — field numbers reserved):
     //   CreateOrganizer, UpdateOrganizer, DeleteOrganizer,
     //   GetOrganizerByDomain, ValidateLicenseKey,
@@ -91,4 +95,18 @@ message SetOrganizerCommissionRequest {
     string organizer_id       = 1;
     optional double commission_percent = 2;
     bool clear                = 3; // true — убрать ставку (вернуться к дефолту)
+}
+
+message GetOrganizerModulesRequest {
+    string organizer_id = 1;
+}
+
+message GetOrganizerModulesResponse {
+    string organizer_id = 1;
+    repeated string disabled_modules = 2;
+}
+
+message SetOrganizerModulesRequest {
+    string organizer_id = 1;
+    repeated string disabled_modules = 2;
 }

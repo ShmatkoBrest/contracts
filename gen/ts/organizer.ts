@@ -79,6 +79,20 @@ export interface SetOrganizerCommissionRequest {
   clear: boolean;
 }
 
+export interface GetOrganizerModulesRequest {
+  organizerId: string;
+}
+
+export interface GetOrganizerModulesResponse {
+  organizerId: string;
+  disabledModules: string[];
+}
+
+export interface SetOrganizerModulesRequest {
+  organizerId: string;
+  disabledModules: string[];
+}
+
 export const ORGANIZER_V1_PACKAGE_NAME = "organizer.v1";
 
 /** Сервис для работы с организаторами событий. */
@@ -99,6 +113,12 @@ export interface OrganizerServiceClient {
   getOrganizerCommission(request: GetOrganizerCommissionRequest): Observable<GetOrganizerCommissionResponse>;
 
   setOrganizerCommission(request: SetOrganizerCommissionRequest): Observable<GetOrganizerCommissionResponse>;
+
+  /** Отключённые модули организатора (news, subscriptions, loyalty, ...). */
+
+  getOrganizerModules(request: GetOrganizerModulesRequest): Observable<GetOrganizerModulesResponse>;
+
+  setOrganizerModules(request: SetOrganizerModulesRequest): Observable<GetOrganizerModulesResponse>;
 }
 
 /** Сервис для работы с организаторами событий. */
@@ -137,6 +157,16 @@ export interface OrganizerServiceController {
     | Promise<GetOrganizerCommissionResponse>
     | Observable<GetOrganizerCommissionResponse>
     | GetOrganizerCommissionResponse;
+
+  /** Отключённые модули организатора (news, subscriptions, loyalty, ...). */
+
+  getOrganizerModules(
+    request: GetOrganizerModulesRequest,
+  ): Promise<GetOrganizerModulesResponse> | Observable<GetOrganizerModulesResponse> | GetOrganizerModulesResponse;
+
+  setOrganizerModules(
+    request: SetOrganizerModulesRequest,
+  ): Promise<GetOrganizerModulesResponse> | Observable<GetOrganizerModulesResponse> | GetOrganizerModulesResponse;
 }
 
 export function OrganizerServiceControllerMethods() {
@@ -148,6 +178,8 @@ export function OrganizerServiceControllerMethods() {
       "setOrganizerLicense",
       "getOrganizerCommission",
       "setOrganizerCommission",
+      "getOrganizerModules",
+      "setOrganizerModules",
     ];
     for (const method of grpcMethods) {
       const descriptor: any = Reflect.getOwnPropertyDescriptor(constructor.prototype, method);

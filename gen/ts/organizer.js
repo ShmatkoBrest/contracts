@@ -20,6 +20,8 @@ function OrganizerServiceControllerMethods() {
             "setOrganizerLicense",
             "getOrganizerCommission",
             "setOrganizerCommission",
+            "getOrganizerModules",
+            "setOrganizerModules",
         ];
         for (const method of grpcMethods) {
             const descriptor = Reflect.getOwnPropertyDescriptor(constructor.prototype, method);
