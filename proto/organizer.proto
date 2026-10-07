@@ -5,17 +5,22 @@ package organizer.v1;
 import "google/protobuf/empty.proto";
 
 // Сервис для работы с организаторами событий.
-// Одиночная платформа: мутирующие RPC убраны — организатор создаётся
-// через seed / прямой SQL, управление через admin-UI не предусмотрено.
 service OrganizerService {
     rpc ListOrganizers (google.protobuf.Empty) returns (ListOrganizersResponse);
     rpc GetOrganizer (GetOrganizerRequest) returns (GetOrganizerResponse);
 
-    // REMOVED (multi-tenant era):
+    // Лицензионный ключ (для развёртываний фронтенда на стороннем хостинге).
+    rpc GetOrganizerLicense (GetOrganizerLicenseRequest) returns (GetOrganizerLicenseResponse);
+    rpc SetOrganizerLicense (SetOrganizerLicenseRequest) returns (SetOrganizerLicenseResponse);
+
+    // Ставка комиссии платформы для организатора (для отчёта и ручного выставления).
+    rpc GetOrganizerCommission (GetOrganizerCommissionRequest) returns (GetOrganizerCommissionResponse);
+    rpc SetOrganizerCommission (SetOrganizerCommissionRequest) returns (GetOrganizerCommissionResponse);
+
+    // REMOVED (multi-tenant era — field numbers reserved):
     //   CreateOrganizer, UpdateOrganizer, DeleteOrganizer,
-    //   GetOrganizerByDomain, SetOrganizerLicense, ValidateLicenseKey,
-    //   SetOrganizerCommission, SetOrganizerModules,
-    //   SetOrganizerSiteEnabled, RecordOrganizerSiteBuild
+    //   GetOrganizerByDomain, ValidateLicenseKey,
+    //   SetOrganizerModules, SetOrganizerSiteEnabled, RecordOrganizerSiteBuild
 }
 
 message ListOrganizersResponse {
@@ -38,9 +43,6 @@ message Organizer {
 
     // REMOVED (multi-tenant fields — field numbers reserved):
     reserved 5;  // domain
-    reserved 6;  // license_key
-    reserved 7;  // license_status
-    reserved 8;  // license_expires_at
     reserved 9;  // commission_percent
     reserved 10; // disabled_modules
     reserved 11; // site_enabled
@@ -48,4 +50,45 @@ message Organizer {
     reserved 13; // site_overlay_version
     reserved 14; // site_built_at
     reserved 15; // site_build_error
+}
+
+message GetOrganizerLicenseRequest {
+    string organizer_id = 1;
+}
+
+message GetOrganizerLicenseResponse {
+    string organizer_id  = 1;
+    string license_key    = 2; // пусто — ключ ещё не выпущен
+    string license_status = 3; // ACTIVE | TRIAL | REVOKED
+    string license_expires_at = 4; // ISO-строка или ""
+}
+
+message SetOrganizerLicenseRequest {
+    string organizer_id   = 1;
+    string status         = 2; // ACTIVE | TRIAL | REVOKED
+    string expires_at     = 3; // ISO-строка, пусто = бессрочно
+    bool   regenerate_key = 4;
+}
+
+message SetOrganizerLicenseResponse {
+    string organizer_id  = 1;
+    string license_key    = 2;
+    string license_status = 3;
+    string license_expires_at = 4;
+}
+
+message GetOrganizerCommissionRequest {
+    string organizer_id = 1;
+}
+
+message GetOrganizerCommissionResponse {
+    string organizer_id = 1;
+    // пусто / null — ставка не задана (используется платформенный дефолт)
+    optional double commission_percent = 2;
+}
+
+message SetOrganizerCommissionRequest {
+    string organizer_id       = 1;
+    optional double commission_percent = 2;
+    bool clear                = 3; // true — убрать ставку (вернуться к дефолту)
 }

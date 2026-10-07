@@ -1,11 +1,11 @@
-# @usteam/contracts
+# @webosoft/contracts
 
 Общий пакет protobuf-контрактов платформы. Единственный источник истины для всех gRPC-взаимодействий между сервисами, плюс TS-интерфейсы асинхронных событий RabbitMQ.
 
 ## Установка
 
 ```bash
-npm install @usteam/contracts
+npm install @webosoft/contracts
 ```
 
 ## Локальная разработка
@@ -35,7 +35,7 @@ npm run build       # tsc -p tsconfig.build.json → dist/
 
 1. Создать `.proto`-файл в `proto/`, следуя стилю существующих файлов (см. `arena.proto` как образец CRUD + список + получение по id).
 2. Добавить путь в `PROTO_PATHS` (`src/proto/paths.ts`).
-3. Если контракт будет использоваться через `@usteam/common`'s `GrpcModule.register(...)`, также нужно зарегистрировать пакет в реестре `GRPC_CLIENTS` пакета `@usteam/common` (`lib/grpc/registry/grpc.registry.ts`) — это отдельный npm-пакет, правки в нём делаются отдельно.
+3. Если контракт будет использоваться через `@webosoft/common`'s `GrpcModule.register(...)`, также нужно зарегистрировать пакет в реестре `GRPC_CLIENTS` пакета `@webosoft/common` (`lib/grpc/registry/grpc.registry.ts`) — это отдельный npm-пакет, правки в нём делаются отдельно.
 4. Поднять версию пакета (`package.json`).
 
 ## Публикация

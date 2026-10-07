@@ -99,6 +99,33 @@ export interface SetEmailSettingsRequest {
   fromAddress: string;
 }
 
+export interface GetS3SettingsRequest {
+}
+
+export interface S3Settings {
+  /**
+   * false — в БД ещё нет записи, media-service использует переменные
+   * окружения S3_*.
+   */
+  configured: boolean;
+  bucket: string;
+  region: string;
+  endpoint: string;
+  accessKey: string;
+  secretKey: string;
+  publicUrl: string;
+}
+
+export interface SetS3SettingsRequest {
+  bucket: string;
+  region: string;
+  endpoint: string;
+  accessKey: string;
+  /** Не передано — secret key не меняется; "" — очистить. */
+  secretKey?: string | undefined;
+  publicUrl: string;
+}
+
 export const NOTIFICATION_V1_PACKAGE_NAME = "notification.v1";
 
 /**
@@ -116,6 +143,10 @@ export interface NotificationSettingsServiceClient {
   getEmailSettings(request: GetEmailSettingsRequest): Observable<EmailSettings>;
 
   setEmailSettings(request: SetEmailSettingsRequest): Observable<EmailSettings>;
+
+  getS3Settings(request: GetS3SettingsRequest): Observable<S3Settings>;
+
+  setS3Settings(request: SetS3SettingsRequest): Observable<S3Settings>;
 }
 
 /**
@@ -137,11 +168,22 @@ export interface NotificationSettingsServiceController {
   setEmailSettings(
     request: SetEmailSettingsRequest,
   ): Promise<EmailSettings> | Observable<EmailSettings> | EmailSettings;
+
+  getS3Settings(request: GetS3SettingsRequest): Promise<S3Settings> | Observable<S3Settings> | S3Settings;
+
+  setS3Settings(request: SetS3SettingsRequest): Promise<S3Settings> | Observable<S3Settings> | S3Settings;
 }
 
 export function NotificationSettingsServiceControllerMethods() {
   return function (constructor: Function) {
-    const grpcMethods: string[] = ["getSmsSettings", "setSmsSettings", "getEmailSettings", "setEmailSettings"];
+    const grpcMethods: string[] = [
+      "getSmsSettings",
+      "setSmsSettings",
+      "getEmailSettings",
+      "setEmailSettings",
+      "getS3Settings",
+      "setS3Settings",
+    ];
     for (const method of grpcMethods) {
       const descriptor: any = Reflect.getOwnPropertyDescriptor(constructor.prototype, method);
       GrpcMethod("NotificationSettingsService", method)(constructor.prototype[method], method, descriptor);

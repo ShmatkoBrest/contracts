@@ -211,6 +211,32 @@ export interface CreditPointsRequest {
   note?: string | undefined;
 }
 
+export interface OrganizerRule {
+  id: string;
+  organizerId: string;
+  earnPercent?: number | undefined;
+  acceptForeignPoints: boolean;
+}
+
+export interface OrganizerRulesResponse {
+  rules: OrganizerRule[];
+}
+
+export interface OrganizerRuleRequest {
+  organizerId: string;
+}
+
+export interface OrganizerRuleResponse {
+  rule?: OrganizerRule | undefined;
+}
+
+export interface SetOrganizerRuleRequest {
+  organizerId: string;
+  earnPercent?: number | undefined;
+  clearEarnPercent: boolean;
+  acceptForeignPoints: boolean;
+}
+
 export const LOYALTY_V1_PACKAGE_NAME = "loyalty.v1";
 
 /**
@@ -284,6 +310,16 @@ export interface LoyaltyServiceClient {
   /** Начислить АБСОЛЮТНОЕ число баллов (не процент от суммы). */
 
   creditPoints(request: CreditPointsRequest): Observable<TxResponse>;
+
+  /** --- Организаторские правила бонусов (Admin) --- */
+
+  listOrganizerRules(request: Empty): Observable<OrganizerRulesResponse>;
+
+  getOrganizerRule(request: OrganizerRuleRequest): Observable<OrganizerRuleResponse>;
+
+  setOrganizerRule(request: SetOrganizerRuleRequest): Observable<OrganizerRule>;
+
+  deleteOrganizerRule(request: IdRequest): Observable<SimpleResponse>;
 }
 
 /**
@@ -361,6 +397,22 @@ export interface LoyaltyServiceController {
   /** Начислить АБСОЛЮТНОЕ число баллов (не процент от суммы). */
 
   creditPoints(request: CreditPointsRequest): Promise<TxResponse> | Observable<TxResponse> | TxResponse;
+
+  /** --- Организаторские правила бонусов (Admin) --- */
+
+  listOrganizerRules(
+    request: Empty,
+  ): Promise<OrganizerRulesResponse> | Observable<OrganizerRulesResponse> | OrganizerRulesResponse;
+
+  getOrganizerRule(
+    request: OrganizerRuleRequest,
+  ): Promise<OrganizerRuleResponse> | Observable<OrganizerRuleResponse> | OrganizerRuleResponse;
+
+  setOrganizerRule(
+    request: SetOrganizerRuleRequest,
+  ): Promise<OrganizerRule> | Observable<OrganizerRule> | OrganizerRule;
+
+  deleteOrganizerRule(request: IdRequest): Promise<SimpleResponse> | Observable<SimpleResponse> | SimpleResponse;
 }
 
 export function LoyaltyServiceControllerMethods() {
@@ -382,6 +434,10 @@ export function LoyaltyServiceControllerMethods() {
       "deleteEventRule",
       "adjust",
       "creditPoints",
+      "listOrganizerRules",
+      "getOrganizerRule",
+      "setOrganizerRule",
+      "deleteOrganizerRule",
     ];
     for (const method of grpcMethods) {
       const descriptor: any = Reflect.getOwnPropertyDescriptor(constructor.prototype, method);

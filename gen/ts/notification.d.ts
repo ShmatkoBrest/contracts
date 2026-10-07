@@ -82,6 +82,30 @@ export interface SetEmailSettingsRequest {
     smtpSecure: boolean;
     fromAddress: string;
 }
+export interface GetS3SettingsRequest {
+}
+export interface S3Settings {
+    /**
+     * false — в БД ещё нет записи, media-service использует переменные
+     * окружения S3_*.
+     */
+    configured: boolean;
+    bucket: string;
+    region: string;
+    endpoint: string;
+    accessKey: string;
+    secretKey: string;
+    publicUrl: string;
+}
+export interface SetS3SettingsRequest {
+    bucket: string;
+    region: string;
+    endpoint: string;
+    accessKey: string;
+    /** Не передано — secret key не меняется; "" — очистить. */
+    secretKey?: string | undefined;
+    publicUrl: string;
+}
 export declare const NOTIFICATION_V1_PACKAGE_NAME = "notification.v1";
 /**
  * Настройки отправки SMS и email (OTP, смена контакта, письма с билетами).
@@ -94,6 +118,8 @@ export interface NotificationSettingsServiceClient {
     setSmsSettings(request: SetSmsSettingsRequest): Observable<SmsSettings>;
     getEmailSettings(request: GetEmailSettingsRequest): Observable<EmailSettings>;
     setEmailSettings(request: SetEmailSettingsRequest): Observable<EmailSettings>;
+    getS3Settings(request: GetS3SettingsRequest): Observable<S3Settings>;
+    setS3Settings(request: SetS3SettingsRequest): Observable<S3Settings>;
 }
 /**
  * Настройки отправки SMS и email (OTP, смена контакта, письма с билетами).
@@ -106,6 +132,8 @@ export interface NotificationSettingsServiceController {
     setSmsSettings(request: SetSmsSettingsRequest): Promise<SmsSettings> | Observable<SmsSettings> | SmsSettings;
     getEmailSettings(request: GetEmailSettingsRequest): Promise<EmailSettings> | Observable<EmailSettings> | EmailSettings;
     setEmailSettings(request: SetEmailSettingsRequest): Promise<EmailSettings> | Observable<EmailSettings> | EmailSettings;
+    getS3Settings(request: GetS3SettingsRequest): Promise<S3Settings> | Observable<S3Settings> | S3Settings;
+    setS3Settings(request: SetS3SettingsRequest): Promise<S3Settings> | Observable<S3Settings> | S3Settings;
 }
 export declare function NotificationSettingsServiceControllerMethods(): (constructor: Function) => void;
 export declare const NOTIFICATION_SETTINGS_SERVICE_NAME = "NotificationSettingsService";

@@ -1,6 +1,6 @@
 {
-  "name": "@usteam/contracts",
-  "version": "4.1.0",
+  "name": "@webosoft/contracts",
+  "version": "4.4.0",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "scripts": {

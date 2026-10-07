@@ -15,7 +15,7 @@ export interface GetAccountResponse {
      * Ключ роли из справочной таблицы `roles` в auth-service
      * (USER | ADMIN | EDITOR | CASHIER). Раньше было enum Role — заменено на
      * string, т.к. роли вынесены в таблицу. Канонический список ключей —
-     * `ROLE_KEYS` в @usteam/common.
+     * `ROLE_KEYS` в @webosoft/common.
      */
     role: string;
 }

@@ -47,6 +47,12 @@ service LoyaltyService {
     rpc Adjust (AdjustRequest) returns (TxResponse);
     // Начислить АБСОЛЮТНОЕ число баллов (не процент от суммы).
     rpc CreditPoints (CreditPointsRequest) returns (TxResponse);
+
+    // --- Организаторские правила бонусов (Admin) ---
+    rpc ListOrganizerRules (google.protobuf.Empty) returns (OrganizerRulesResponse);
+    rpc GetOrganizerRule (OrganizerRuleRequest) returns (OrganizerRuleResponse);
+    rpc SetOrganizerRule (SetOrganizerRuleRequest) returns (OrganizerRule);
+    rpc DeleteOrganizerRule (IdRequest) returns (SimpleResponse);
 }
 
 // EARN — начисление за покупку; REDEEM — списание; REFUND_CLAWBACK — снятие
@@ -222,4 +228,20 @@ message CreditPointsRequest {
     string ref_type = 5;
     string ref_id = 6;
     optional string note = 7;
+}
+
+message OrganizerRule {
+    string id = 1;
+    string organizer_id = 2;
+    optional double earn_percent = 3;
+    bool accept_foreign_points = 4;
+}
+message OrganizerRulesResponse { repeated OrganizerRule rules = 1; }
+message OrganizerRuleRequest { string organizer_id = 1; }
+message OrganizerRuleResponse { optional OrganizerRule rule = 1; }
+message SetOrganizerRuleRequest {
+    string organizer_id = 1;
+    optional double earn_percent = 2;
+    bool clear_earn_percent = 3;
+    bool accept_foreign_points = 4;
 }

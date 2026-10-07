@@ -55,6 +55,10 @@ function LoyaltyServiceControllerMethods() {
             "deleteEventRule",
             "adjust",
             "creditPoints",
+            "listOrganizerRules",
+            "getOrganizerRule",
+            "setOrganizerRule",
+            "deleteOrganizerRule",
         ];
         for (const method of grpcMethods) {
             const descriptor = Reflect.getOwnPropertyDescriptor(constructor.prototype, method);

@@ -12,6 +12,9 @@ service NotificationSettingsService {
 
     rpc GetEmailSettings (GetEmailSettingsRequest) returns (EmailSettings);
     rpc SetEmailSettings (SetEmailSettingsRequest) returns (EmailSettings);
+
+    rpc GetS3Settings (GetS3SettingsRequest) returns (S3Settings);
+    rpc SetS3Settings (SetS3SettingsRequest) returns (S3Settings);
 }
 
 message GetSmsSettingsRequest {
@@ -98,6 +101,33 @@ message SetEmailSettingsRequest {
     optional string smtp_password = 4;
     bool smtp_secure = 5;
     string from_address = 6;
+}
+
+// ===== S3-хранилище медиафайлов =====
+
+message GetS3SettingsRequest {
+}
+
+message S3Settings {
+    // false — в БД ещё нет записи, media-service использует переменные
+    // окружения S3_*.
+    bool configured = 1;
+    string bucket    = 2;
+    string region    = 3;
+    string endpoint  = 4;
+    string access_key = 5;
+    string secret_key = 6;
+    string public_url = 7;
+}
+
+message SetS3SettingsRequest {
+    string bucket    = 1;
+    string region    = 2;
+    string endpoint  = 3;
+    string access_key = 4;
+    // Не передано — secret key не меняется; "" — очистить.
+    optional string secret_key = 5;
+    string public_url = 6;
 }
 
 // REMOVED: OrganizerNotificationSettings, GetOrganizerNotificationSettingsRequest,

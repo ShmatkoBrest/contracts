@@ -13,7 +13,14 @@ exports.protobufPackage = "organizer.v1";
 exports.ORGANIZER_V1_PACKAGE_NAME = "organizer.v1";
 function OrganizerServiceControllerMethods() {
     return function (constructor) {
-        const grpcMethods = ["listOrganizers", "getOrganizer"];
+        const grpcMethods = [
+            "listOrganizers",
+            "getOrganizer",
+            "getOrganizerLicense",
+            "setOrganizerLicense",
+            "getOrganizerCommission",
+            "setOrganizerCommission",
+        ];
         for (const method of grpcMethods) {
             const descriptor = Reflect.getOwnPropertyDescriptor(constructor.prototype, method);
             (0, microservices_1.GrpcMethod)("OrganizerService", method)(constructor.prototype[method], method, descriptor);

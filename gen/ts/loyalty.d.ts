@@ -171,6 +171,27 @@ export interface CreditPointsRequest {
     refId: string;
     note?: string | undefined;
 }
+export interface OrganizerRule {
+    id: string;
+    organizerId: string;
+    earnPercent?: number | undefined;
+    acceptForeignPoints: boolean;
+}
+export interface OrganizerRulesResponse {
+    rules: OrganizerRule[];
+}
+export interface OrganizerRuleRequest {
+    organizerId: string;
+}
+export interface OrganizerRuleResponse {
+    rule?: OrganizerRule | undefined;
+}
+export interface SetOrganizerRuleRequest {
+    organizerId: string;
+    earnPercent?: number | undefined;
+    clearEarnPercent: boolean;
+    acceptForeignPoints: boolean;
+}
 export declare const LOYALTY_V1_PACKAGE_NAME = "loyalty.v1";
 /**
  * Программа лояльности: бонусные баллы за покупку билетов и абонементов.
@@ -218,6 +239,11 @@ export interface LoyaltyServiceClient {
     adjust(request: AdjustRequest): Observable<TxResponse>;
     /** Начислить АБСОЛЮТНОЕ число баллов (не процент от суммы). */
     creditPoints(request: CreditPointsRequest): Observable<TxResponse>;
+    /** --- Организаторские правила бонусов (Admin) --- */
+    listOrganizerRules(request: Empty): Observable<OrganizerRulesResponse>;
+    getOrganizerRule(request: OrganizerRuleRequest): Observable<OrganizerRuleResponse>;
+    setOrganizerRule(request: SetOrganizerRuleRequest): Observable<OrganizerRule>;
+    deleteOrganizerRule(request: IdRequest): Observable<SimpleResponse>;
 }
 /**
  * Программа лояльности: бонусные баллы за покупку билетов и абонементов.
@@ -265,6 +291,11 @@ export interface LoyaltyServiceController {
     adjust(request: AdjustRequest): Promise<TxResponse> | Observable<TxResponse> | TxResponse;
     /** Начислить АБСОЛЮТНОЕ число баллов (не процент от суммы). */
     creditPoints(request: CreditPointsRequest): Promise<TxResponse> | Observable<TxResponse> | TxResponse;
+    /** --- Организаторские правила бонусов (Admin) --- */
+    listOrganizerRules(request: Empty): Promise<OrganizerRulesResponse> | Observable<OrganizerRulesResponse> | OrganizerRulesResponse;
+    getOrganizerRule(request: OrganizerRuleRequest): Promise<OrganizerRuleResponse> | Observable<OrganizerRuleResponse> | OrganizerRuleResponse;
+    setOrganizerRule(request: SetOrganizerRuleRequest): Promise<OrganizerRule> | Observable<OrganizerRule> | OrganizerRule;
+    deleteOrganizerRule(request: IdRequest): Promise<SimpleResponse> | Observable<SimpleResponse> | SimpleResponse;
 }
 export declare function LoyaltyServiceControllerMethods(): (constructor: Function) => void;
 export declare const LOYALTY_SERVICE_NAME = "LoyaltyService";
