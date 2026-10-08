@@ -30,8 +30,12 @@ export interface Organizer {
   image: string;
   /** УНП (учётный номер плательщика) — подставляется в подпись email-писем. */
   unp: string;
+  /** Контактный телефон организатора — отображается в подписи email-писем. */
+  contactPhone: string;
   /** Свой домен/поддомен организатора (резолв тенанта по Host-заголовку). */
   domain: string;
+  /** Контактный email организатора — отображается в подписи email-писем. */
+  contactEmail: string;
 }
 
 export interface GetOrganizerLicenseRequest {
@@ -104,6 +108,8 @@ export interface UpdateOrganizerRequest {
   image?: string | undefined;
   domain?: string | undefined;
   unp?: string | undefined;
+  contactPhone?: string | undefined;
+  contactEmail?: string | undefined;
 }
 
 export interface UpdateOrganizerResponse {
@@ -113,6 +119,8 @@ export interface UpdateOrganizerResponse {
   image: string;
   domain: string;
   unp: string;
+  contactPhone: string;
+  contactEmail: string;
 }
 
 export const ORGANIZER_V1_PACKAGE_NAME = "organizer.v1";
