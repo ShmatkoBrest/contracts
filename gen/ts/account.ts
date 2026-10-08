@@ -29,6 +29,8 @@ export interface GetAccountResponse {
    * `ROLE_KEYS` в @webosoft/common.
    */
   role: string;
+  /** Все роли аккаунта. Пустой массив — использовать поле role. */
+  roles: string[];
 }
 
 export interface ListAccountsRequest {
@@ -49,8 +51,10 @@ export interface ListAccountsResponse {
 
 export interface SetAccountRoleRequest {
   id: string;
-  /** Ключ роли (USER | ADMIN | EDITOR | CASHIER) */
+  /** Ключ одной роли (backward compat). Если задан roles — игнорируется. */
   role: string;
+  /** Набор ролей (приоритет над role). Первый элемент — основная роль. */
+  roles: string[];
 }
 
 export interface Role {

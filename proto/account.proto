@@ -79,7 +79,10 @@ message GetAccountResponse {
   string role              = 6;
   // REMOVED: organizer_id = 7 (ORGANIZER_ADMIN роль убрана)
   reserved 7;
-
+  // Все роли аккаунта (один аккаунт может иметь несколько ролей,
+  // например ORGANIZER_ADMIN + CASHIER). Если пустой — основная роль
+  // берётся из поля role.
+  repeated string roles    = 8;
 }
 
 message ListAccountsRequest {
@@ -98,10 +101,12 @@ message ListAccountsResponse {
 
 message SetAccountRoleRequest {
   string id   = 1;
-  // Ключ роли (USER | ADMIN | EDITOR | CASHIER)
+  // Ключ одной роли (backward compat). Если задан roles — игнорируется.
   string role = 2;
   // REMOVED: organizer_id = 3 (ORGANIZER_ADMIN убран)
   reserved 3;
+  // Набор ролей (приоритет над role). Первый элемент — основная роль.
+  repeated string roles = 4;
 }
 
 message Role {
