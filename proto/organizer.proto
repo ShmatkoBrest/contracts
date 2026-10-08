@@ -21,10 +21,13 @@ service OrganizerService {
     rpc GetOrganizerModules (GetOrganizerModulesRequest) returns (GetOrganizerModulesResponse);
     rpc SetOrganizerModules (SetOrganizerModulesRequest) returns (GetOrganizerModulesResponse);
 
+    // Обновление профиля организатора (title, description, image, domain, unp).
+    rpc UpdateOrganizer (UpdateOrganizerRequest) returns (UpdateOrganizerResponse);
+
     // REMOVED (multi-tenant era — field numbers reserved):
-    //   CreateOrganizer, UpdateOrganizer, DeleteOrganizer,
+    //   CreateOrganizer, DeleteOrganizer,
     //   GetOrganizerByDomain, ValidateLicenseKey,
-    //   SetOrganizerModules, SetOrganizerSiteEnabled, RecordOrganizerSiteBuild
+    //   SetOrganizerSiteEnabled, RecordOrganizerSiteBuild
 }
 
 message ListOrganizersResponse {
@@ -45,8 +48,8 @@ message Organizer {
     string description = 3;
     string image       = 4;
 
-    // REMOVED (multi-tenant fields — field numbers reserved):
-    reserved 5;  // domain
+    // REMOVED (multi-tenant fields — field numbers 5, 9–15 reserved):
+    reserved 5;  // domain (old position)
     reserved 9;  // commission_percent
     reserved 10; // disabled_modules
     reserved 11; // site_enabled
@@ -54,6 +57,15 @@ message Organizer {
     reserved 13; // site_overlay_version
     reserved 14; // site_built_at
     reserved 15; // site_build_error
+
+    // УНП (учётный номер плательщика) — подставляется в подпись email-писем.
+    string unp    = 6;
+    // Контактный телефон организатора — отображается в подписи email-писем.
+    string contact_phone = 7;
+    // Свой домен/поддомен организатора (резолв тенанта по Host-заголовку).
+    string domain = 8;
+    // Контактный email организатора — отображается в подписи email-писем.
+    string contact_email = 16;
 }
 
 message GetOrganizerLicenseRequest {
@@ -109,4 +121,26 @@ message GetOrganizerModulesResponse {
 message SetOrganizerModulesRequest {
     string organizer_id = 1;
     repeated string disabled_modules = 2;
+}
+
+message UpdateOrganizerRequest {
+    string organizer_id     = 1;
+    optional string title         = 2;
+    optional string description   = 3;
+    optional string image         = 4;
+    optional string domain        = 5;
+    optional string unp           = 6;
+    optional string contact_phone = 7;
+    optional string contact_email = 8;
+}
+
+message UpdateOrganizerResponse {
+    string organizer_id  = 1;
+    string title         = 2;
+    string description   = 3;
+    string image         = 4;
+    string domain        = 5;
+    string unp           = 6;
+    string contact_phone = 7;
+    string contact_email = 8;
 }
