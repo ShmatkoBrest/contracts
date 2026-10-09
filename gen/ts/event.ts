@@ -37,6 +37,8 @@ export interface ListEventsRequest {
    * (не «фильтр не задан»).
    */
   ids: string[];
+  /** Если true — скрывать неопубликованные события (published=false). Публичный каталог. */
+  publishedOnly?: boolean | undefined;
 }
 
 export interface ListEventsResponse {
@@ -79,6 +81,8 @@ export interface CreateEventRequest {
     | undefined;
   /** См. EventDetails.price_tier_colors. */
   priceTierColors: string[];
+  published: boolean;
+  activated: boolean;
 }
 
 /**
@@ -126,6 +130,8 @@ export interface UpdateEventRequest {
    */
   purchaseLimit?: number | undefined;
   priceTierColors: PriceTierColorsList | undefined;
+  published?: boolean | undefined;
+  activated?: boolean | undefined;
 }
 
 export interface DeleteEventRequest {
@@ -143,6 +149,8 @@ export interface Event {
   poster: string;
   ratingAge: number;
   releaseDate: Timestamp | undefined;
+  published: boolean;
+  activated: boolean;
 }
 
 export interface EventDetails {
@@ -185,6 +193,8 @@ export interface EventDetails {
    * event-service, отдать её здесь дешевле на порядки.
    */
   category?: EventCategory | undefined;
+  published: boolean;
+  activated: boolean;
 }
 
 /**

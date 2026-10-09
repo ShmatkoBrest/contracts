@@ -36,6 +36,9 @@ message ListEventsRequest {
     // Пусто — не фильтровать; непустой список без совпадений — 0 результатов
     // (не «фильтр не задан»).
     repeated string ids = 11;
+    // Если true — возвращать только события с published=true (публичный
+    // каталог). Если не задан или false — все события (admin-запросы).
+    optional bool published_only = 12;
 }
 
 message ListEventsResponse {
@@ -73,6 +76,9 @@ message CreateEventRequest {
     optional int32 purchase_limit = 14;
     // См. EventDetails.price_tier_colors.
     repeated string price_tier_colors = 15;
+    // Видимость и активность события (по умолчанию оба true).
+    bool published = 16;
+    bool activated = 17;
 }
 
 // Обёртка нужна, чтобы отличить "поле не передано" (performer_ids не тронут
@@ -109,6 +115,9 @@ message UpdateEventRequest {
     // presence уже различим через optional.
     optional int32 purchase_limit = 15;
     PriceTierColorsList price_tier_colors = 16;
+    // Видимость и активность события.
+    optional bool published = 17;
+    optional bool activated = 18;
 }
 
 message DeleteEventRequest {
@@ -126,6 +135,8 @@ message Event {
     string poster = 4;
     int32 rating_age = 5;
     google.protobuf.Timestamp release_date = 6;
+    bool published = 7;
+    bool activated = 8;
 }
 
 message EventDetails {
@@ -158,6 +169,9 @@ message EventDetails {
     // cache stampede при протухании. Категория у события и так есть в БД
     // event-service, отдать её здесь дешевле на порядки.
     optional EventCategory category = 16;
+    // Видимость и активность события.
+    bool published = 17;
+    bool activated = 18;
 }
 
 // Категория в ответе события. Намеренно НЕ импортируем category.v1.Category:

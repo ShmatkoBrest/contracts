@@ -23,6 +23,7 @@ export interface ListEventsRequest {
      * (не «фильтр не задан»).
      */
     ids: string[];
+    publishedOnly?: boolean | undefined;
 }
 export interface ListEventsResponse {
     events: Event[];
@@ -55,6 +56,8 @@ export interface CreateEventRequest {
     purchaseLimit?: number | undefined;
     /** См. EventDetails.price_tier_colors. */
     priceTierColors: string[];
+    published: boolean;
+    activated: boolean;
 }
 /**
  * Обёртка нужна, чтобы отличить "поле не передано" (performer_ids не тронут
@@ -95,6 +98,8 @@ export interface UpdateEventRequest {
      */
     purchaseLimit?: number | undefined;
     priceTierColors: PriceTierColorsList | undefined;
+    published?: boolean | undefined;
+    activated?: boolean | undefined;
 }
 export interface DeleteEventRequest {
     id: string;
@@ -109,6 +114,8 @@ export interface Event {
     poster: string;
     ratingAge: number;
     releaseDate: Timestamp | undefined;
+    published: boolean;
+    activated: boolean;
 }
 export interface EventDetails {
     id: string;
@@ -146,6 +153,8 @@ export interface EventDetails {
      * event-service, отдать её здесь дешевле на порядки.
      */
     category?: EventCategory | undefined;
+    published: boolean;
+    activated: boolean;
 }
 /**
  * Категория в ответе события. Намеренно НЕ импортируем category.v1.Category:
