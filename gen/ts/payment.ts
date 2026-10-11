@@ -192,6 +192,8 @@ export interface SetMerchantAccountRequest {
    */
   delete: boolean;
   provider: PaymentProviderType;
+  /** true — bePaid тестовый режим. Игнорируется для WEBPAY. */
+  testMode: boolean;
 }
 
 export interface SetMerchantAccountResponse {
@@ -213,6 +215,7 @@ export interface GetMerchantAccountResponse {
   storeId: string;
   webhookSecret: string;
   provider: PaymentProviderType;
+  testMode: boolean;
 }
 
 export const PAYMENT_V1_PACKAGE_NAME = "payment.v1";

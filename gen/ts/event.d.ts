@@ -23,6 +23,7 @@ export interface ListEventsRequest {
      * (не «фильтр не задан»).
      */
     ids: string[];
+    /** Если true — скрывать неопубликованные события (published=false). Публичный каталог. */
     publishedOnly?: boolean | undefined;
 }
 export interface ListEventsResponse {

@@ -197,6 +197,9 @@ message SetMerchantAccountRequest {
     // дефолту по умолчанию для его платежей).
     bool delete = 6;
     PaymentProviderType provider = 7;
+    // true — bePaid работает в тестовом режиме (checkout.bepaid.by принимает
+    // тестовые карты). Игнорируется для WEBPAY.
+    bool test_mode = 8;
 }
 
 message SetMerchantAccountResponse {
@@ -216,4 +219,5 @@ message GetMerchantAccountResponse {
     string store_id = 4;
     string webhook_secret = 5;
     PaymentProviderType provider = 6;
+    bool test_mode = 7;
 }
