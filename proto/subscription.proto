@@ -7,6 +7,8 @@ import "google/protobuf/timestamp.proto";
 service SubscriptionService {
     // Планы абонементов
     rpc CreateSubscriptionPlan (CreateSubscriptionPlanRequest) returns (SubscriptionPlan);
+    // 4.7.0: предварительный расчёт стоимости абонемента (корзина, preview цены)
+    rpc QuoteSubscription (QuoteSubscriptionRequest) returns (QuoteSubscriptionResponse);
     rpc UpdateSubscriptionPlan (UpdateSubscriptionPlanRequest) returns (SubscriptionPlan);
     rpc DeleteSubscriptionPlan (DeleteSubscriptionPlanRequest) returns (DeleteResponse);
     rpc GetSubscriptionPlan (GetSubscriptionPlanRequest) returns (SubscriptionPlan);
@@ -204,6 +206,12 @@ message PurchaseSubscriptionRequest {
     // (по аналогии с несколькими seats у FIXED_SEAT). Не задано/0 → 1.
     // Игнорируется для FIXED_SEAT (там количество = len(seats)).
     optional int32 ga_quantity = 6;
+    // 4.7.0: промокод — применяется через pricing-service к базовой цене
+    // плана/сектора.
+    optional string promo_code = 7;
+    // 4.7.0: код аудитории (категория покупателя) — для GA-плана или как
+    // умолчание для всех мест FIXED_SEAT-плана, когда per-seat код не задан.
+    optional string audience_code = 8;
 }
 
 message PurchaseSubscriptionResponse {
@@ -359,6 +367,9 @@ message SeatRef {
     // Игнорируется вне CreateCashierSubscriptionSale (в PurchaseSubscription
     // не читается).
     optional int32 discount_pct = 3;
+    // 4.7.0: код аудитории для конкретного места при PurchaseSubscription
+    // (FIXED_SEAT). Пусто — используется audience_code из PurchaseSubscriptionRequest.
+    optional string audience_code = 4;
 }
 
 message RenewalOffer {
@@ -630,4 +641,33 @@ message BuyResaleListingRequest {
 message BuyResaleListingResponse {
     string url = 1;
     string payment_id = 2;
+}
+
+// ===== 4.7.0: предварительный расчёт стоимости абонемента (корзина) =====
+
+message QuoteSubscriptionRequest {
+    string plan_id = 1;
+    // FIXED_SEAT: список мест (с необязательным audience_code на каждое).
+    // GA: пусто, количество задаётся ga_quantity.
+    repeated SeatRef seats = 2;
+    // Для GA — сколько подписок считать. 0 или не задано → 1.
+    optional int32 ga_quantity = 3;
+    optional string promo_code = 4;
+    // Код аудитории как умолчание для мест без собственного audience_code.
+    optional string audience_code = 5;
+    string user_id = 6;
+}
+
+message QuoteSubscriptionItem {
+    // Пусто для GA-элементов.
+    string seat_id = 1;
+    string sector_id = 2;
+    int32 base_price = 3;
+    int32 final_price = 4;
+    int32 discount = 5;
+}
+
+message QuoteSubscriptionResponse {
+    repeated QuoteSubscriptionItem items = 1;
+    int32 total = 2;
 }

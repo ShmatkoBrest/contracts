@@ -45,6 +45,19 @@ service PricingService {
     rpc UpdateAudience (UpdateAudienceRequest) returns (Audience);
     rpc DeleteAudience (DeleteAudienceRequest) returns (DeleteResponse);
     rpc ListAudiences (ListAudiencesRequest) returns (ListAudiencesResponse);
+
+    // 4.7.0: базовые цены секторов для плана абонемента (аналог PriceTemplate,
+    // но привязан к плану, а не к сеансу — у абонемента нет screening_id в
+    // момент покупки). При отсутствии записи для сектора используется
+    // SubscriptionPlan.price как базовая цена (фолбэк).
+    rpc SetSubscriptionPlanPrice (SetSubscriptionPlanPriceRequest) returns (SubscriptionPlanPrice);
+    rpc DeleteSubscriptionPlanPrice (DeleteSubscriptionPlanPriceRequest) returns (DeleteResponse);
+    rpc ListSubscriptionPlanPrices (ListSubscriptionPlanPricesRequest) returns (ListSubscriptionPlanPricesResponse);
+
+    // 4.7.0: расчёт цены абонемента с учётом правил, промокода и аудитории.
+    // Использует SubscriptionPlanPrice как базу; при отсутствии — default_price
+    // из запроса (= SubscriptionPlan.price).
+    rpc CalculateSubscriptionPrice (CalculateSubscriptionPriceRequest) returns (CalculateSubscriptionPriceResponse);
 }
 
 // ===== CalculatePrice =====
@@ -355,6 +368,61 @@ message Audience {
     optional string public_title = 4;
     optional string event_id = 5;
     optional string event_group_id = 6;
+}
+
+// ===== 4.7.0: базовые цены секторов для планов абонементов =====
+
+message SetSubscriptionPlanPriceRequest {
+    string plan_id = 1;
+    string sector_id = 2;
+    // Цена в копейках.
+    int32 base_price = 3;
+}
+
+message DeleteSubscriptionPlanPriceRequest {
+    string plan_id = 1;
+    string sector_id = 2;
+}
+
+message ListSubscriptionPlanPricesRequest {
+    string plan_id = 1;
+}
+
+message SubscriptionPlanPrice {
+    string id = 1;
+    string plan_id = 2;
+    string sector_id = 3;
+    int32 base_price = 4;
+}
+
+message ListSubscriptionPlanPricesResponse {
+    repeated SubscriptionPlanPrice prices = 1;
+}
+
+// 4.7.0: расчёт цены абонемента (без screening_id — его нет при покупке).
+// Базовая цена: SubscriptionPlanPrice для сектора; если не задана — default_price.
+// Правила применяются с учётом event_group_id (scope).
+
+message CalculateSubscriptionPriceRequest {
+    string plan_id = 1;
+    string sector_id = 2;
+    // Базовая цена из плана (используется как фолбэк если нет SubscriptionPlanPrice).
+    int32 default_price = 3;
+    int32 quantity = 4;
+    string user_id = 5;
+    optional string audience_code = 6;
+    optional string promo_code = 7;
+    // ID группы событий плана — для матчинга правил с event_group_id scope.
+    optional string event_group_id = 8;
+}
+
+message CalculateSubscriptionPriceResponse {
+    int32 base_price = 1;
+    int32 discount = 2;
+    int32 surcharge = 3;
+    int32 final_price = 4;
+    repeated AppliedRule rules = 5;
+    string snapshot_id = 6;
 }
 
 // ===== Общее =====
