@@ -44,6 +44,10 @@ function PricingServiceControllerMethods() {
             "updateAudience",
             "deleteAudience",
             "listAudiences",
+            "setSubscriptionPlanPrice",
+            "deleteSubscriptionPlanPrice",
+            "listSubscriptionPlanPrices",
+            "calculateSubscriptionPrice",
         ];
         for (const method of grpcMethods) {
             const descriptor = Reflect.getOwnPropertyDescriptor(constructor.prototype, method);

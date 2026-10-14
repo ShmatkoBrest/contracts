@@ -57,6 +57,7 @@ function SubscriptionServiceControllerMethods() {
     return function (constructor) {
         const grpcMethods = [
             "createSubscriptionPlan",
+            "quoteSubscription",
             "updateSubscriptionPlan",
             "deleteSubscriptionPlan",
             "getSubscriptionPlan",

@@ -346,6 +346,57 @@ export interface Audience {
   eventGroupId?: string | undefined;
 }
 
+export interface SetSubscriptionPlanPriceRequest {
+  planId: string;
+  sectorId: string;
+  /** Цена в копейках. */
+  basePrice: number;
+}
+
+export interface DeleteSubscriptionPlanPriceRequest {
+  planId: string;
+  sectorId: string;
+}
+
+export interface ListSubscriptionPlanPricesRequest {
+  planId: string;
+}
+
+export interface SubscriptionPlanPrice {
+  id: string;
+  planId: string;
+  sectorId: string;
+  basePrice: number;
+}
+
+export interface ListSubscriptionPlanPricesResponse {
+  prices: SubscriptionPlanPrice[];
+}
+
+export interface CalculateSubscriptionPriceRequest {
+  planId: string;
+  sectorId: string;
+  /** Базовая цена из плана (используется как фолбэк если нет SubscriptionPlanPrice). */
+  defaultPrice: number;
+  quantity: number;
+  userId: string;
+  audienceCode?: string | undefined;
+  promoCode?:
+    | string
+    | undefined;
+  /** ID группы событий плана — для матчинга правил с event_group_id scope. */
+  eventGroupId?: string | undefined;
+}
+
+export interface CalculateSubscriptionPriceResponse {
+  basePrice: number;
+  discount: number;
+  surcharge: number;
+  finalPrice: number;
+  rules: AppliedRule[];
+  snapshotId: string;
+}
+
 export interface DeleteResponse {
   ok: boolean;
 }
@@ -417,6 +468,31 @@ export interface PricingServiceClient {
   deleteAudience(request: DeleteAudienceRequest): Observable<DeleteResponse>;
 
   listAudiences(request: ListAudiencesRequest): Observable<ListAudiencesResponse>;
+
+  /**
+   * 4.7.0: базовые цены секторов для плана абонемента (аналог PriceTemplate,
+   * но привязан к плану, а не к сеансу — у абонемента нет screening_id в
+   * момент покупки). При отсутствии записи для сектора используется
+   * SubscriptionPlan.price как базовая цена (фолбэк).
+   */
+
+  setSubscriptionPlanPrice(request: SetSubscriptionPlanPriceRequest): Observable<SubscriptionPlanPrice>;
+
+  deleteSubscriptionPlanPrice(request: DeleteSubscriptionPlanPriceRequest): Observable<DeleteResponse>;
+
+  listSubscriptionPlanPrices(
+    request: ListSubscriptionPlanPricesRequest,
+  ): Observable<ListSubscriptionPlanPricesResponse>;
+
+  /**
+   * 4.7.0: расчёт цены абонемента с учётом правил, промокода и аудитории.
+   * Использует SubscriptionPlanPrice как базу; при отсутствии — default_price
+   * из запроса (= SubscriptionPlan.price).
+   */
+
+  calculateSubscriptionPrice(
+    request: CalculateSubscriptionPriceRequest,
+  ): Observable<CalculateSubscriptionPriceResponse>;
 }
 
 export interface PricingServiceController {
@@ -504,6 +580,41 @@ export interface PricingServiceController {
   listAudiences(
     request: ListAudiencesRequest,
   ): Promise<ListAudiencesResponse> | Observable<ListAudiencesResponse> | ListAudiencesResponse;
+
+  /**
+   * 4.7.0: базовые цены секторов для плана абонемента (аналог PriceTemplate,
+   * но привязан к плану, а не к сеансу — у абонемента нет screening_id в
+   * момент покупки). При отсутствии записи для сектора используется
+   * SubscriptionPlan.price как базовая цена (фолбэк).
+   */
+
+  setSubscriptionPlanPrice(
+    request: SetSubscriptionPlanPriceRequest,
+  ): Promise<SubscriptionPlanPrice> | Observable<SubscriptionPlanPrice> | SubscriptionPlanPrice;
+
+  deleteSubscriptionPlanPrice(
+    request: DeleteSubscriptionPlanPriceRequest,
+  ): Promise<DeleteResponse> | Observable<DeleteResponse> | DeleteResponse;
+
+  listSubscriptionPlanPrices(
+    request: ListSubscriptionPlanPricesRequest,
+  ):
+    | Promise<ListSubscriptionPlanPricesResponse>
+    | Observable<ListSubscriptionPlanPricesResponse>
+    | ListSubscriptionPlanPricesResponse;
+
+  /**
+   * 4.7.0: расчёт цены абонемента с учётом правил, промокода и аудитории.
+   * Использует SubscriptionPlanPrice как базу; при отсутствии — default_price
+   * из запроса (= SubscriptionPlan.price).
+   */
+
+  calculateSubscriptionPrice(
+    request: CalculateSubscriptionPriceRequest,
+  ):
+    | Promise<CalculateSubscriptionPriceResponse>
+    | Observable<CalculateSubscriptionPriceResponse>
+    | CalculateSubscriptionPriceResponse;
 }
 
 export function PricingServiceControllerMethods() {
@@ -526,6 +637,10 @@ export function PricingServiceControllerMethods() {
       "updateAudience",
       "deleteAudience",
       "listAudiences",
+      "setSubscriptionPlanPrice",
+      "deleteSubscriptionPlanPrice",
+      "listSubscriptionPlanPrices",
+      "calculateSubscriptionPrice",
     ];
     for (const method of grpcMethods) {
       const descriptor: any = Reflect.getOwnPropertyDescriptor(constructor.prototype, method);

@@ -102,6 +102,9 @@ message CreateSubscriptionPlanRequest {
     // касса), не показывается в публичной витрине. Отсутствие поля — false
     // (обычный публичный план, как раньше).
     optional bool hidden = 6;
+    // 4.8.0 — арена плана: используется для отображения карты мест и управления
+    // ценами по секторам без зависимости от наличия сеансов.
+    optional string arena_id = 7;
 }
 
 message UpdateSubscriptionPlanRequest {
@@ -115,6 +118,8 @@ message UpdateSubscriptionPlanRequest {
     // в event.proto).
     optional EventGroupIdList event_group_ids = 6;
     optional bool hidden = 7;
+    // 4.8.0 — арена плана.
+    optional string arena_id = 8;
 }
 
 message EventGroupIdList {
@@ -181,6 +186,9 @@ message SubscriptionPlan {
     // пригласительным абонементам и кампаниям продления не мешает —
     // `active`/`hidden` независимы друг от друга.
     bool hidden = 9;
+    // 4.8.0 — арена плана: используется для отображения карты мест и управления
+    // ценами по секторам без зависимости от наличия сеансов.
+    string arena_id = 10;
 }
 
 // ===== UserSubscription =====

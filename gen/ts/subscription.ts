@@ -64,7 +64,14 @@ export interface CreateSubscriptionPlanRequest {
    * касса), не показывается в публичной витрине. Отсутствие поля — false
    * (обычный публичный план, как раньше).
    */
-  hidden?: boolean | undefined;
+  hidden?:
+    | boolean
+    | undefined;
+  /**
+   * 4.8.0 — арена плана: используется для отображения карты мест и управления
+   * ценами по секторам без зависимости от наличия сеансов.
+   */
+  arenaId?: string | undefined;
 }
 
 export interface UpdateSubscriptionPlanRequest {
@@ -81,7 +88,11 @@ export interface UpdateSubscriptionPlanRequest {
    * в event.proto).
    */
   eventGroupIds?: EventGroupIdList | undefined;
-  hidden?: boolean | undefined;
+  hidden?:
+    | boolean
+    | undefined;
+  /** 4.8.0 — арена плана. */
+  arenaId?: string | undefined;
 }
 
 export interface EventGroupIdList {
@@ -154,6 +165,11 @@ export interface SubscriptionPlan {
    * `active`/`hidden` независимы друг от друга.
    */
   hidden: boolean;
+  /**
+   * 4.8.0 — арена плана: используется для отображения карты мест и управления
+   * ценами по секторам без зависимости от наличия сеансов.
+   */
+  arenaId: string;
 }
 
 export interface PurchaseSubscriptionRequest {
@@ -174,7 +190,21 @@ export interface PurchaseSubscriptionRequest {
    * (по аналогии с несколькими seats у FIXED_SEAT). Не задано/0 → 1.
    * Игнорируется для FIXED_SEAT (там количество = len(seats)).
    */
-  gaQuantity?: number | undefined;
+  gaQuantity?:
+    | number
+    | undefined;
+  /**
+   * 4.7.0: промокод — применяется через pricing-service к базовой цене
+   * плана/сектора.
+   */
+  promoCode?:
+    | string
+    | undefined;
+  /**
+   * 4.7.0: код аудитории (категория покупателя) — для GA-плана или как
+   * умолчание для всех мест FIXED_SEAT-плана, когда per-seat код не задан.
+   */
+  audienceCode?: string | undefined;
 }
 
 export interface PurchaseSubscriptionResponse {
@@ -319,7 +349,14 @@ export interface SeatRef {
    * Игнорируется вне CreateCashierSubscriptionSale (в PurchaseSubscription
    * не читается).
    */
-  discountPct?: number | undefined;
+  discountPct?:
+    | number
+    | undefined;
+  /**
+   * 4.7.0: код аудитории для конкретного места при PurchaseSubscription
+   * (FIXED_SEAT). Пусто — используется audience_code из PurchaseSubscriptionRequest.
+   */
+  audienceCode?: string | undefined;
 }
 
 export interface RenewalOffer {
@@ -615,12 +652,47 @@ export interface BuyResaleListingResponse {
   paymentId: string;
 }
 
+export interface QuoteSubscriptionRequest {
+  planId: string;
+  /**
+   * FIXED_SEAT: список мест (с необязательным audience_code на каждое).
+   * GA: пусто, количество задаётся ga_quantity.
+   */
+  seats: SeatRef[];
+  /** Для GA — сколько подписок считать. 0 или не задано → 1. */
+  gaQuantity?: number | undefined;
+  promoCode?:
+    | string
+    | undefined;
+  /** Код аудитории как умолчание для мест без собственного audience_code. */
+  audienceCode?: string | undefined;
+  userId: string;
+}
+
+export interface QuoteSubscriptionItem {
+  /** Пусто для GA-элементов. */
+  seatId: string;
+  sectorId: string;
+  basePrice: number;
+  finalPrice: number;
+  discount: number;
+}
+
+export interface QuoteSubscriptionResponse {
+  items: QuoteSubscriptionItem[];
+  total: number;
+}
+
 export const SUBSCRIPTION_V1_PACKAGE_NAME = "subscription.v1";
 
 export interface SubscriptionServiceClient {
   /** Планы абонементов */
 
   createSubscriptionPlan(request: CreateSubscriptionPlanRequest): Observable<SubscriptionPlan>;
+
+  /** 4.7.0: предварительный расчёт стоимости абонемента (корзина, preview цены) */
+
+  quoteSubscription(request: QuoteSubscriptionRequest): Observable<QuoteSubscriptionResponse>;
 
   updateSubscriptionPlan(request: UpdateSubscriptionPlanRequest): Observable<SubscriptionPlan>;
 
@@ -774,6 +846,12 @@ export interface SubscriptionServiceController {
   createSubscriptionPlan(
     request: CreateSubscriptionPlanRequest,
   ): Promise<SubscriptionPlan> | Observable<SubscriptionPlan> | SubscriptionPlan;
+
+  /** 4.7.0: предварительный расчёт стоимости абонемента (корзина, preview цены) */
+
+  quoteSubscription(
+    request: QuoteSubscriptionRequest,
+  ): Promise<QuoteSubscriptionResponse> | Observable<QuoteSubscriptionResponse> | QuoteSubscriptionResponse;
 
   updateSubscriptionPlan(
     request: UpdateSubscriptionPlanRequest,
@@ -1006,6 +1084,7 @@ export function SubscriptionServiceControllerMethods() {
   return function (constructor: Function) {
     const grpcMethods: string[] = [
       "createSubscriptionPlan",
+      "quoteSubscription",
       "updateSubscriptionPlan",
       "deleteSubscriptionPlan",
       "getSubscriptionPlan",

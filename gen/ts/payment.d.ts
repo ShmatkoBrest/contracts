@@ -163,7 +163,10 @@ export interface SetMerchantAccountRequest {
      */
     delete: boolean;
     provider: PaymentProviderType;
-    /** true — bePaid тестовый режим. Игнорируется для WEBPAY. */
+    /**
+     * true — bePaid работает в тестовом режиме (checkout.bepaid.by принимает
+     * тестовые карты). Игнорируется для WEBPAY.
+     */
     testMode: boolean;
 }
 export interface SetMerchantAccountResponse {
