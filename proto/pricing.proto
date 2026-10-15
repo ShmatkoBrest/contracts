@@ -377,11 +377,15 @@ message SetSubscriptionPlanPriceRequest {
     string sector_id = 2;
     // Цена в копейках.
     int32 base_price = 3;
+    // '' = стандарт; 'BENEFIT' = льготный; 'RENEWAL' = продление (стандарт);
+    // 'RENEWAL_BENEFIT' = продление (льготный). Не передаётся — трактуется как ''.
+    optional string audience_code = 4;
 }
 
 message DeleteSubscriptionPlanPriceRequest {
     string plan_id = 1;
     string sector_id = 2;
+    optional string audience_code = 3;
 }
 
 message ListSubscriptionPlanPricesRequest {
@@ -393,6 +397,8 @@ message SubscriptionPlanPrice {
     string plan_id = 2;
     string sector_id = 3;
     int32 base_price = 4;
+    // '' = стандарт; 'BENEFIT' = льготный; 'RENEWAL' = продление; 'RENEWAL_BENEFIT' = продление льготный.
+    string audience_code = 5;
 }
 
 message ListSubscriptionPlanPricesResponse {

@@ -289,10 +289,12 @@ export interface SetSubscriptionPlanPriceRequest {
     sectorId: string;
     /** Цена в копейках. */
     basePrice: number;
+    audienceCode?: string | undefined;
 }
 export interface DeleteSubscriptionPlanPriceRequest {
     planId: string;
     sectorId: string;
+    audienceCode?: string | undefined;
 }
 export interface ListSubscriptionPlanPricesRequest {
     planId: string;
@@ -302,6 +304,7 @@ export interface SubscriptionPlanPrice {
     planId: string;
     sectorId: string;
     basePrice: number;
+    audienceCode: string;
 }
 export interface ListSubscriptionPlanPricesResponse {
     prices: SubscriptionPlanPrice[];

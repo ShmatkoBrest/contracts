@@ -1,4 +1,4 @@
-import { Observable } from "rxjs";
+﻿import { Observable } from "rxjs";
 import { Timestamp } from "./google/protobuf/timestamp";
 export declare const protobufPackage = "subscription.v1";
 export declare enum SubscriptionType {
@@ -55,6 +55,8 @@ export interface CreateSubscriptionPlanRequest {
      * ценами по секторам без зависимости от наличия сеансов.
      */
     arenaId?: string | undefined;
+    /** 4.9.0 — организатор плана; определяет мерчант-аккаунт для оплаты. */
+    organizerId?: string | undefined;
 }
 export interface UpdateSubscriptionPlanRequest {
     id: string;
@@ -71,6 +73,8 @@ export interface UpdateSubscriptionPlanRequest {
     hidden?: boolean | undefined;
     /** 4.8.0 — арена плана. */
     arenaId?: string | undefined;
+    /** 4.9.0 — организатор плана; определяет мерчант-аккаунт для оплаты. */
+    organizerId?: string | undefined;
 }
 export interface EventGroupIdList {
     ids: string[];
@@ -135,6 +139,8 @@ export interface SubscriptionPlan {
      * ценами по секторам без зависимости от наличия сеансов.
      */
     arenaId: string;
+    /** 4.9.0 — организатор плана; определяет мерчант-аккаунт для оплаты. */
+    organizerId: string;
 }
 export interface PurchaseSubscriptionRequest {
     userId: string;
@@ -171,6 +177,8 @@ export interface PurchaseSubscriptionResponse {
     url: string;
     /** 3.15.0: все подписки, созданные этой покупкой. */
     subscriptionIds: string[];
+    /** 4.8.0: время истечения PENDING-холда. */
+    expiresAt?: Timestamp | undefined;
 }
 export interface CancelSubscriptionRequest {
     id: string;
@@ -319,6 +327,8 @@ export interface RenewSubscriptionRequest {
      */
     seatId?: string | undefined;
     sectorId?: string | undefined;
+    /** '' / undefined = стандарт; 'BENEFIT' = льготный. */
+    audienceCode?: string | undefined;
 }
 export interface GetSeasonSeatMapRequest {
     campaignId: string;

@@ -105,6 +105,12 @@ message CreateSubscriptionPlanRequest {
     // 4.8.0 — арена плана: используется для отображения карты мест и управления
     // ценами по секторам без зависимости от наличия сеансов.
     optional string arena_id = 7;
+    // 4.8.0 — organizerId мерчанта для оплаты абонементов (bePaid/Webpay).
+    // Пусто — платформенный дефолт из env payment-service.
+    optional string organizer_id = 8;
+    // 4.10.0 — окно продаж: план недоступен вне [saleFrom, saleTo].
+    optional google.protobuf.Timestamp sale_from = 9;
+    optional google.protobuf.Timestamp sale_to = 10;
 }
 
 message UpdateSubscriptionPlanRequest {
@@ -120,6 +126,11 @@ message UpdateSubscriptionPlanRequest {
     optional bool hidden = 7;
     // 4.8.0 — арена плана.
     optional string arena_id = 8;
+    // 4.8.0 — organizerId мерчанта для оплаты абонементов.
+    optional string organizer_id = 9;
+    // 4.10.0 — окно продаж: план недоступен вне [saleFrom, saleTo].
+    optional google.protobuf.Timestamp sale_from = 10;
+    optional google.protobuf.Timestamp sale_to = 11;
 }
 
 message EventGroupIdList {
@@ -189,6 +200,11 @@ message SubscriptionPlan {
     // 4.8.0 — арена плана: используется для отображения карты мест и управления
     // ценами по секторам без зависимости от наличия сеансов.
     string arena_id = 10;
+    // 4.8.0 — organizerId мерчанта для оплаты абонементов (bePaid/Webpay).
+    string organizer_id = 11;
+    // 4.10.0 — окно продаж: план недоступен вне [saleFrom, saleTo].
+    optional google.protobuf.Timestamp sale_from = 12;
+    optional google.protobuf.Timestamp sale_to = 13;
 }
 
 // ===== UserSubscription =====
@@ -229,6 +245,8 @@ message PurchaseSubscriptionResponse {
     string url = 2;
     // 3.15.0: все подписки, созданные этой покупкой.
     repeated string subscription_ids = 3;
+    // 4.8.0: время истечения PENDING-холда (когда неоплаченные места освобождаются).
+    optional google.protobuf.Timestamp expires_at = 4;
 }
 
 message CancelSubscriptionRequest {
@@ -410,6 +428,8 @@ message RenewSubscriptionRequest {
     // должно быть доступно по карте мест сезона.
     optional string seat_id = 3;
     optional string sector_id = 4;
+    // '' / не передан = стандарт; 'BENEFIT' = льготный.
+    optional string audience_code = 5;
 }
 
 message GetSeasonSeatMapRequest {
