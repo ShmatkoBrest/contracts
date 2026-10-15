@@ -36,6 +36,8 @@ export interface Organizer {
   domain: string;
   /** Контактный email организатора — отображается в подписи email-писем. */
   contactEmail: string;
+  /** Банковские реквизиты организатора — подставляются в счёт-фактуру (Заявки). */
+  requisites: string;
 }
 
 export interface GetOrganizerLicenseRequest {
@@ -110,6 +112,7 @@ export interface UpdateOrganizerRequest {
   unp?: string | undefined;
   contactPhone?: string | undefined;
   contactEmail?: string | undefined;
+  requisites?: string | undefined;
 }
 
 export interface UpdateOrganizerResponse {
@@ -121,6 +124,7 @@ export interface UpdateOrganizerResponse {
   unp: string;
   contactPhone: string;
   contactEmail: string;
+  requisites: string;
 }
 
 export const ORGANIZER_V1_PACKAGE_NAME = "organizer.v1";

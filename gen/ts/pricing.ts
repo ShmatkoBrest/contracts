@@ -351,7 +351,10 @@ export interface SetSubscriptionPlanPriceRequest {
   sectorId: string;
   /** Цена в копейках. */
   basePrice: number;
-  /** '' = стандарт; 'BENEFIT' = льготный; 'RENEWAL' / 'RENEWAL_BENEFIT' = продление. */
+  /**
+   * '' = стандарт; 'BENEFIT' = льготный; 'RENEWAL' = продление (стандарт);
+   * 'RENEWAL_BENEFIT' = продление (льготный). Не передаётся — трактуется как ''.
+   */
   audienceCode?: string | undefined;
 }
 
@@ -370,6 +373,7 @@ export interface SubscriptionPlanPrice {
   planId: string;
   sectorId: string;
   basePrice: number;
+  /** '' = стандарт; 'BENEFIT' = льготный; 'RENEWAL' = продление; 'RENEWAL_BENEFIT' = продление льготный. */
   audienceCode: string;
 }
 

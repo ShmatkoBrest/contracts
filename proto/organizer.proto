@@ -66,6 +66,8 @@ message Organizer {
     string domain = 8;
     // Контактный email организатора — отображается в подписи email-писем.
     string contact_email = 16;
+    // 4.13.0: банковские/платёжные реквизиты организатора для счёта (текстовый блок).
+    string requisites = 17;
 }
 
 message GetOrganizerLicenseRequest {
@@ -132,6 +134,8 @@ message UpdateOrganizerRequest {
     optional string unp           = 6;
     optional string contact_phone = 7;
     optional string contact_email = 8;
+    // 4.13.0
+    optional string requisites    = 9;
 }
 
 message UpdateOrganizerResponse {
@@ -143,4 +147,6 @@ message UpdateOrganizerResponse {
     string unp           = 6;
     string contact_phone = 7;
     string contact_email = 8;
+    // 4.13.0
+    string requisites    = 9;
 }

@@ -644,6 +644,69 @@ export interface SetEmailTemplateResponse {
 
 export const BOOKING_V1_PACKAGE_NAME = "booking.v1";
 
+export interface OrgBookingItem {
+  id: string;
+  orderId: string;
+  subscriptionId: string;
+  amount: number;
+}
+
+export interface OrgBookingProto {
+  id: string;
+  orgName: string;
+  email: string;
+  status: string;
+  cashierId: string;
+  screeningId?: string | undefined;
+  planId?: string | undefined;
+  totalAmount: number;
+  items: OrgBookingItem[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateOrgBookingRequest {
+  orgName: string;
+  cashierId: string;
+  screeningId?: string | undefined;
+  planId?: string | undefined;
+  orderIds: string[];
+  subscriptionIds: string[];
+  totalAmount: number;
+}
+
+export interface CreateOrgBookingResponse {
+  orgBooking: OrgBookingProto | undefined;
+}
+
+export interface GetOrgBookingRequest {
+  id: string;
+}
+
+export interface GetOrgBookingResponse {
+  orgBooking: OrgBookingProto | undefined;
+}
+
+export interface ListOrgBookingsRequest {
+  cashierId?: string | undefined;
+  screeningId?: string | undefined;
+  planId?: string | undefined;
+}
+
+export interface ListOrgBookingsResponse {
+  orgBookings: OrgBookingProto[];
+}
+
+export interface UpdateOrgBookingRequest {
+  id: string;
+  status?: string | undefined;
+  email?: string | undefined;
+}
+
+export interface UpdateOrgBookingResponse {
+  orgBooking: OrgBookingProto | undefined;
+}
+
 export interface BookingServiceClient {
   /** Получение всех активных броней пользователя */
 
@@ -820,6 +883,14 @@ export interface BookingServiceClient {
   getEmailTemplate(request: GetEmailTemplateRequest): Observable<GetEmailTemplateResponse>;
 
   setEmailTemplate(request: SetEmailTemplateRequest): Observable<SetEmailTemplateResponse>;
+
+  createOrgBooking(request: CreateOrgBookingRequest): Observable<CreateOrgBookingResponse>;
+
+  getOrgBooking(request: GetOrgBookingRequest): Observable<GetOrgBookingResponse>;
+
+  listOrgBookings(request: ListOrgBookingsRequest): Observable<ListOrgBookingsResponse>;
+
+  updateOrgBooking(request: UpdateOrgBookingRequest): Observable<UpdateOrgBookingResponse>;
 }
 
 export interface BookingServiceController {
@@ -1053,6 +1124,22 @@ export interface BookingServiceController {
   setEmailTemplate(
     request: SetEmailTemplateRequest,
   ): Promise<SetEmailTemplateResponse> | Observable<SetEmailTemplateResponse> | SetEmailTemplateResponse;
+
+  createOrgBooking(
+    request: CreateOrgBookingRequest,
+  ): Promise<CreateOrgBookingResponse> | Observable<CreateOrgBookingResponse> | CreateOrgBookingResponse;
+
+  getOrgBooking(
+    request: GetOrgBookingRequest,
+  ): Promise<GetOrgBookingResponse> | Observable<GetOrgBookingResponse> | GetOrgBookingResponse;
+
+  listOrgBookings(
+    request: ListOrgBookingsRequest,
+  ): Promise<ListOrgBookingsResponse> | Observable<ListOrgBookingsResponse> | ListOrgBookingsResponse;
+
+  updateOrgBooking(
+    request: UpdateOrgBookingRequest,
+  ): Promise<UpdateOrgBookingResponse> | Observable<UpdateOrgBookingResponse> | UpdateOrgBookingResponse;
 }
 
 export function BookingServiceControllerMethods() {
@@ -1089,6 +1176,10 @@ export function BookingServiceControllerMethods() {
       "setPrintTemplate",
       "getEmailTemplate",
       "setEmailTemplate",
+      "createOrgBooking",
+      "getOrgBooking",
+      "listOrgBookings",
+      "updateOrgBooking",
     ];
     for (const method of grpcMethods) {
       const descriptor: any = Reflect.getOwnPropertyDescriptor(constructor.prototype, method);

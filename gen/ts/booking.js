@@ -51,6 +51,10 @@ function BookingServiceControllerMethods() {
             "setPrintTemplate",
             "getEmailTemplate",
             "setEmailTemplate",
+            "createOrgBooking",
+            "getOrgBooking",
+            "listOrgBookings",
+            "updateOrgBooking",
         ];
         for (const method of grpcMethods) {
             const descriptor = Reflect.getOwnPropertyDescriptor(constructor.prototype, method);

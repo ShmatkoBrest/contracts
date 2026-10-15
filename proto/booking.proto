@@ -99,6 +99,12 @@ service BookingService {
     // Шаблон письма с билетами: общий по умолчанию + переопределения под событие (3.25.0).
     rpc GetEmailTemplate (GetEmailTemplateRequest) returns (GetEmailTemplateResponse);
     rpc SetEmailTemplate (SetEmailTemplateRequest) returns (SetEmailTemplateResponse);
+
+    // 4.13.0: Заявки от организаций
+    rpc CreateOrgBooking (CreateOrgBookingRequest) returns (CreateOrgBookingResponse);
+    rpc GetOrgBooking (GetOrgBookingRequest) returns (GetOrgBookingResponse);
+    rpc ListOrgBookings (ListOrgBookingsRequest) returns (ListOrgBookingsResponse);
+    rpc UpdateOrgBooking (UpdateOrgBookingRequest) returns (UpdateOrgBookingResponse);
 }
 
 // ===== Cashier =====
@@ -673,4 +679,74 @@ message SetEmailTemplateRequest {
 
 message SetEmailTemplateResponse {
     bool ok = 1;
+}
+
+// ===== 4.13.0: Заявки от организаций (продажа пакетом с выставлением счёта) =====
+
+message OrgBookingItem {
+    string id = 1;
+    // id заказа билетов (если тип — билеты)
+    string order_id = 2;
+    // id абонемента (если тип — абонементы)
+    string subscription_id = 3;
+    // сумма по строке (копейки)
+    int32 amount = 4;
+}
+
+message OrgBookingProto {
+    string id = 1;
+    string org_name = 2;
+    string email = 3;
+    // RESERVED | PAID | CANCELED
+    string status = 4;
+    string cashier_id = 5;
+    optional string screening_id = 6;
+    optional string plan_id = 7;
+    int32 total_amount = 8;
+    repeated OrgBookingItem items = 9;
+    string created_at = 10;
+    string updated_at = 11;
+}
+
+message CreateOrgBookingRequest {
+    string org_name = 1;
+    string cashier_id = 2;
+    optional string screening_id = 3;
+    optional string plan_id = 4;
+    repeated string order_ids = 5;
+    repeated string subscription_ids = 6;
+    int32 total_amount = 7;
+}
+
+message CreateOrgBookingResponse {
+    OrgBookingProto org_booking = 1;
+}
+
+message GetOrgBookingRequest {
+    string id = 1;
+}
+
+message GetOrgBookingResponse {
+    OrgBookingProto org_booking = 1;
+}
+
+message ListOrgBookingsRequest {
+    // пусто = администратор (все заявки)
+    optional string cashier_id = 1;
+    optional string screening_id = 2;
+    optional string plan_id = 3;
+}
+
+message ListOrgBookingsResponse {
+    repeated OrgBookingProto org_bookings = 1;
+}
+
+message UpdateOrgBookingRequest {
+    string id = 1;
+    optional string status = 2;
+    optional string email = 3;
+}
+
+message UpdateOrgBookingResponse {
+    OrgBookingProto org_booking = 1;
 }

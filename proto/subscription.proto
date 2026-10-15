@@ -375,6 +375,10 @@ message UpdateRenewalCampaignRequest {
     optional int32 renewal_discount_pct = 3;
     optional int32 early_bird_discount_pct = 4;
     optional google.protobuf.Timestamp early_bird_deadline = 5;
+    // 4.11.0: произвольный переход статуса (DRAFT/ACTIVE/CLOSED); пусто — не менять.
+    optional string status = 6;
+    // 4.12.0: перезаписать дату запуска (только если кампания уже ACTIVE); пусто — не менять.
+    optional google.protobuf.Timestamp started_at = 7;
 }
 
 message ListRenewalCampaignsRequest {
