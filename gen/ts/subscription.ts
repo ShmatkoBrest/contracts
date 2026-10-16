@@ -259,6 +259,7 @@ export interface GetUserSubscriptionsResponse {
 
 export interface GetSubscriptionRequest {
   id: string;
+  claimCode?: string;
 }
 
 export interface UserSubscription {
