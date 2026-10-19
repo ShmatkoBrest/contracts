@@ -691,6 +691,15 @@ message OrgBookingItem {
     string subscription_id = 3;
     // сумма по строке (копейки)
     int32 amount = 4;
+    // читабельная метка: "Сектор A · Ряд 3 · Место 5" (пусто для GENERAL_ADMISSION)
+    string label = 5;
+}
+
+// Входная позиция абонемента при создании заявки (с суммой и меткой места)
+message OrgBookingSubscriptionItemInput {
+    string subscription_id = 1;
+    int32 amount = 2;
+    string label = 3;
 }
 
 message OrgBookingProto {
@@ -716,6 +725,8 @@ message CreateOrgBookingRequest {
     repeated string order_ids = 5;
     repeated string subscription_ids = 6;
     int32 total_amount = 7;
+    // 4.16.0: позиции абонементов с суммами и метками мест
+    repeated OrgBookingSubscriptionItemInput subscription_items = 8;
 }
 
 message CreateOrgBookingResponse {
