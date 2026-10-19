@@ -642,19 +642,30 @@ export interface SetEmailTemplateResponse {
   ok: boolean;
 }
 
-export const BOOKING_V1_PACKAGE_NAME = "booking.v1";
-
 export interface OrgBookingItem {
   id: string;
+  /** id заказа билетов (если тип — билеты) */
   orderId: string;
+  /** id абонемента (если тип — абонементы) */
+  subscriptionId: string;
+  /** сумма по строке (копейки) */
+  amount: number;
+  /** читабельная метка: "Сектор A · Ряд 3 · Место 5" (пусто для GENERAL_ADMISSION) */
+  label: string;
+}
+
+/** Входная позиция абонемента при создании заявки (с суммой и меткой места) */
+export interface OrgBookingSubscriptionItemInput {
   subscriptionId: string;
   amount: number;
+  label: string;
 }
 
 export interface OrgBookingProto {
   id: string;
   orgName: string;
   email: string;
+  /** RESERVED | PAID | CANCELED */
   status: string;
   cashierId: string;
   screeningId?: string | undefined;
@@ -673,6 +684,8 @@ export interface CreateOrgBookingRequest {
   orderIds: string[];
   subscriptionIds: string[];
   totalAmount: number;
+  /** 4.16.0: позиции абонементов с суммами и метками мест */
+  subscriptionItems: OrgBookingSubscriptionItemInput[];
 }
 
 export interface CreateOrgBookingResponse {
@@ -688,6 +701,7 @@ export interface GetOrgBookingResponse {
 }
 
 export interface ListOrgBookingsRequest {
+  /** пусто = администратор (все заявки) */
   cashierId?: string | undefined;
   screeningId?: string | undefined;
   planId?: string | undefined;
@@ -706,6 +720,8 @@ export interface UpdateOrgBookingRequest {
 export interface UpdateOrgBookingResponse {
   orgBooking: OrgBookingProto | undefined;
 }
+
+export const BOOKING_V1_PACKAGE_NAME = "booking.v1";
 
 export interface BookingServiceClient {
   /** Получение всех активных броней пользователя */
@@ -883,6 +899,8 @@ export interface BookingServiceClient {
   getEmailTemplate(request: GetEmailTemplateRequest): Observable<GetEmailTemplateResponse>;
 
   setEmailTemplate(request: SetEmailTemplateRequest): Observable<SetEmailTemplateResponse>;
+
+  /** 4.13.0: Заявки от организаций */
 
   createOrgBooking(request: CreateOrgBookingRequest): Observable<CreateOrgBookingResponse>;
 
@@ -1124,6 +1142,8 @@ export interface BookingServiceController {
   setEmailTemplate(
     request: SetEmailTemplateRequest,
   ): Promise<SetEmailTemplateResponse> | Observable<SetEmailTemplateResponse> | SetEmailTemplateResponse;
+
+  /** 4.13.0: Заявки от организаций */
 
   createOrgBooking(
     request: CreateOrgBookingRequest,

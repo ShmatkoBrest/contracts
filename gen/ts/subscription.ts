@@ -259,7 +259,8 @@ export interface GetUserSubscriptionsResponse {
 
 export interface GetSubscriptionRequest {
   id: string;
-  claimCode?: string;
+  /** Поиск по коду привязки (для кассовой смены — одно из двух, id или claim_code). */
+  claimCode?: string | undefined;
 }
 
 export interface UserSubscription {
@@ -281,6 +282,8 @@ export interface UserSubscription {
    * какому аккаунту (claimed_at не выставлен).
    */
   claimCode: string;
+  /** 4.15.0: фактически уплаченная сумма в копейках (из DB). */
+  amount: number;
 }
 
 export interface CheckSubscriptionAccessRequest {
@@ -393,14 +396,21 @@ export interface SeatRef {
    * 4.7.0: код аудитории для конкретного места при PurchaseSubscription
    * (FIXED_SEAT). Пусто — используется audience_code из PurchaseSubscriptionRequest.
    */
-  audienceCode?: string | undefined;
+  audienceCode?:
+    | string
+    | undefined;
+  /**
+   * 4.15.0: точная цена места в копейках (например, из pricing-service).
+   * Если передана в CreateCashierSubscriptionSale — используется как есть,
+   * discount_pct игнорируется. Позволяет кассе передавать секторные цены,
+   * которые отличаются от plan.price.
+   */
+  priceOverride?: number | undefined;
 }
 
 export interface RenewalOffer {
   campaignId: string;
   fromSubscriptionId: string;
-  /** ID плана, с которого продлевается абонемент — нужен фронту для разрешения категории/стадиона по старым событиям. */
-  fromPlanId: string;
   toPlanId: string;
   toPlanTitle: string;
   /** Текущие места абонемента (строго свои — приоритет на продление). */
@@ -539,6 +549,12 @@ export interface CreateCashierSubscriptionSaleRequest {
    * одного discount_pct на одну подписку. Игнорируется для FIXED_SEAT.
    */
   ga: SubscriptionGaInput[];
+  /**
+   * 4.14.0: если true — создать абонемент в статусе PENDING (не активировать
+   * сразу). Используется для ОргБронь: деньги будут получены позднее,
+   * при подтверждении заявки администратором.
+   */
+  reservedOnly: boolean;
 }
 
 export interface SubscriptionGaInput {
@@ -594,6 +610,25 @@ export interface IssueComplimentarySubscriptionResponse {
    * (subscription_id, claim_code, amount — здесь всегда 0).
    */
   items: CashierSubscriptionSaleItem[];
+}
+
+export interface BulkImportSubscriptionRow {
+  claimCode: string;
+  seatId: string;
+  sectorId: string;
+}
+
+export interface BulkImportSubscriptionsRequest {
+  planId: string;
+  rows: BulkImportSubscriptionRow[];
+  issuedBy: string;
+  note?: string | undefined;
+}
+
+export interface BulkImportSubscriptionsResponse {
+  items: CashierSubscriptionSaleItem[];
+  /** claim-коды, которые не удалось импортировать (уже существуют в БД). */
+  skippedClaimCodes: string[];
 }
 
 /**
@@ -726,6 +761,16 @@ export interface QuoteSubscriptionResponse {
   total: number;
 }
 
+export interface ActivateOrgBookingSubscriptionsRequest {
+  /** IDs абонементов, которые нужно перевести из PENDING → ACTIVE. */
+  subscriptionIds: string[];
+}
+
+export interface ActivateOrgBookingSubscriptionsResponse {
+  /** Количество фактически активированных абонементов. */
+  activated: number;
+}
+
 export const SUBSCRIPTION_V1_PACKAGE_NAME = "subscription.v1";
 
 export interface SubscriptionServiceClient {
@@ -833,6 +878,13 @@ export interface SubscriptionServiceClient {
   ): Observable<IssueComplimentarySubscriptionResponse>;
 
   /**
+   * 4.16.0: массовый импорт абонементов с пользовательскими claim-кодами
+   * (миграция данных из внешних систем — claim-код задаётся явно).
+   */
+
+  bulkImportSubscriptions(request: BulkImportSubscriptionsRequest): Observable<BulkImportSubscriptionsResponse>;
+
+  /**
    * 2026-09-18: отправить код(ы) привязки только что выданных
    * пригласительных абонементов на e-mail получателя (тот же приём, что
    * и «отправить билеты на e-mail» у пригласительных на сеанс).
@@ -852,6 +904,12 @@ export interface SubscriptionServiceClient {
   setPlanCashiers(request: SetPlanCashiersRequest): Observable<PlanCashiersResponse>;
 
   canCashierSellPlan(request: CanCashierSellPlanRequest): Observable<CanCashierSellPlanResponse>;
+
+  /** 4.14.0: активировать PENDING-абонементы ОргБронь (при подтверждении оплаты). */
+
+  activateOrgBookingSubscriptions(
+    request: ActivateOrgBookingSubscriptionsRequest,
+  ): Observable<ActivateOrgBookingSubscriptionsResponse>;
 
   /**
    * ===== 2026-09-21: перепродажа места по абонементу =====
@@ -1054,6 +1112,18 @@ export interface SubscriptionServiceController {
     | IssueComplimentarySubscriptionResponse;
 
   /**
+   * 4.16.0: массовый импорт абонементов с пользовательскими claim-кодами
+   * (миграция данных из внешних систем — claim-код задаётся явно).
+   */
+
+  bulkImportSubscriptions(
+    request: BulkImportSubscriptionsRequest,
+  ):
+    | Promise<BulkImportSubscriptionsResponse>
+    | Observable<BulkImportSubscriptionsResponse>
+    | BulkImportSubscriptionsResponse;
+
+  /**
    * 2026-09-18: отправить код(ы) привязки только что выданных
    * пригласительных абонементов на e-mail получателя (тот же приём, что
    * и «отправить билеты на e-mail» у пригласительных на сеанс).
@@ -1082,6 +1152,15 @@ export interface SubscriptionServiceController {
   canCashierSellPlan(
     request: CanCashierSellPlanRequest,
   ): Promise<CanCashierSellPlanResponse> | Observable<CanCashierSellPlanResponse> | CanCashierSellPlanResponse;
+
+  /** 4.14.0: активировать PENDING-абонементы ОргБронь (при подтверждении оплаты). */
+
+  activateOrgBookingSubscriptions(
+    request: ActivateOrgBookingSubscriptionsRequest,
+  ):
+    | Promise<ActivateOrgBookingSubscriptionsResponse>
+    | Observable<ActivateOrgBookingSubscriptionsResponse>
+    | ActivateOrgBookingSubscriptionsResponse;
 
   /**
    * ===== 2026-09-21: перепродажа места по абонементу =====
@@ -1154,10 +1233,12 @@ export function SubscriptionServiceControllerMethods() {
       "claimSubscription",
       "listCashierSubscriptionSales",
       "issueComplimentarySubscription",
+      "bulkImportSubscriptions",
       "emailComplimentarySubscription",
       "getPlanCashiers",
       "setPlanCashiers",
       "canCashierSellPlan",
+      "activateOrgBookingSubscriptions",
       "createResaleListing",
       "cancelResaleListing",
       "listMyResaleListings",

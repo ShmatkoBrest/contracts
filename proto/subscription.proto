@@ -57,6 +57,9 @@ service SubscriptionService {
     // админки, что и пригласительные билеты. Как и кассовая продажа —
     // выдаёт код привязки (получатель не известен системе заранее).
     rpc IssueComplimentarySubscription (IssueComplimentarySubscriptionRequest) returns (IssueComplimentarySubscriptionResponse);
+    // 4.16.0: массовый импорт абонементов с пользовательскими claim-кодами
+    // (миграция данных из внешних систем — claim-код задаётся явно).
+    rpc BulkImportSubscriptions (BulkImportSubscriptionsRequest) returns (BulkImportSubscriptionsResponse);
     // 2026-09-18: отправить код(ы) привязки только что выданных
     // пригласительных абонементов на e-mail получателя (тот же приём, что
     // и «отправить билеты на e-mail» у пригласительных на сеанс).
@@ -67,6 +70,9 @@ service SubscriptionService {
     rpc GetPlanCashiers (GetPlanCashiersRequest) returns (PlanCashiersResponse);
     rpc SetPlanCashiers (SetPlanCashiersRequest) returns (PlanCashiersResponse);
     rpc CanCashierSellPlan (CanCashierSellPlanRequest) returns (CanCashierSellPlanResponse);
+
+    // 4.14.0: активировать PENDING-абонементы ОргБронь (при подтверждении оплаты).
+    rpc ActivateOrgBookingSubscriptions (ActivateOrgBookingSubscriptionsRequest) returns (ActivateOrgBookingSubscriptionsResponse);
 
     // ===== 2026-09-21: перепродажа места по абонементу =====
     // Держатель FIXED_SEAT-абонемента, не идущий на конкретный матч,
@@ -264,6 +270,8 @@ message GetUserSubscriptionsResponse {
 
 message GetSubscriptionRequest {
     string id = 1;
+    // Поиск по коду привязки (для кассовой смены — одно из двух, id или claim_code).
+    optional string claim_code = 2;
 }
 
 message UserSubscription {
@@ -279,6 +287,8 @@ message UserSubscription {
     // 3.16.0: непусто только для кассовой продажи, ещё не привязанной ни к
     // какому аккаунту (claimed_at не выставлен).
     string claim_code = 8;
+    // 4.15.0: фактически уплаченная сумма в копейках (из DB).
+    int32 amount = 9;
 }
 
 // ===== Access =====
@@ -400,6 +410,11 @@ message SeatRef {
     // 4.7.0: код аудитории для конкретного места при PurchaseSubscription
     // (FIXED_SEAT). Пусто — используется audience_code из PurchaseSubscriptionRequest.
     optional string audience_code = 4;
+    // 4.15.0: точная цена места в копейках (например, из pricing-service).
+    // Если передана в CreateCashierSubscriptionSale — используется как есть,
+    // discount_pct игнорируется. Позволяет кассе передавать секторные цены,
+    // которые отличаются от plan.price.
+    optional int32 price_override = 5;
 }
 
 message RenewalOffer {
@@ -523,6 +538,10 @@ message CreateCashierSubscriptionSaleRequest {
     // категориям в одной продаже (например, 2 полных + 1 детский), вместо
     // одного discount_pct на одну подписку. Игнорируется для FIXED_SEAT.
     repeated SubscriptionGaInput ga = 8;
+    // 4.14.0: если true — создать абонемент в статусе PENDING (не активировать
+    // сразу). Используется для ОргБронь: деньги будут получены позднее,
+    // при подтверждении заявки администратором.
+    bool reserved_only = 9;
 }
 
 message SubscriptionGaInput {
@@ -568,6 +587,27 @@ message IssueComplimentarySubscriptionResponse {
     // Переиспользует существующее сообщение кассовой продажи — та же форма
     // (subscription_id, claim_code, amount — здесь всегда 0).
     repeated CashierSubscriptionSaleItem items = 1;
+}
+
+// ===== 4.16.0: массовый импорт абонементов с пользовательскими claim-кодами =====
+
+message BulkImportSubscriptionRow {
+    string claim_code = 1;
+    string seat_id = 2;
+    string sector_id = 3;
+}
+
+message BulkImportSubscriptionsRequest {
+    string plan_id = 1;
+    repeated BulkImportSubscriptionRow rows = 2;
+    string issued_by = 3;
+    optional string note = 4;
+}
+
+message BulkImportSubscriptionsResponse {
+    repeated CashierSubscriptionSaleItem items = 1;
+    // claim-коды, которые не удалось импортировать (уже существуют в БД).
+    repeated string skipped_claim_codes = 2;
 }
 
 // subscription-service не резолвит геометрию мест (row/number/sectorName) —
@@ -702,4 +742,16 @@ message QuoteSubscriptionItem {
 message QuoteSubscriptionResponse {
     repeated QuoteSubscriptionItem items = 1;
     int32 total = 2;
+}
+
+// ===== 4.14.0: активация абонементов ОргБронь =====
+
+message ActivateOrgBookingSubscriptionsRequest {
+    // IDs абонементов, которые нужно перевести из PENDING → ACTIVE.
+    repeated string subscription_ids = 1;
+}
+
+message ActivateOrgBookingSubscriptionsResponse {
+    // Количество фактически активированных абонементов.
+    int32 activated = 1;
 }
