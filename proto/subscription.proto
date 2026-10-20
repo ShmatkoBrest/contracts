@@ -89,6 +89,13 @@ service SubscriptionService {
     // Публичный список мест на перепродажу — для раскраски карты мест сеанса
     // (только status=LISTED, без идентичности продавца).
     rpc ListResaleListings (ListResaleListingsRequest) returns (ListResaleListingsResponse);
+
+    // ===== 4.20.0: серверный TTL-холд для абонемента (без оплаты) =====
+    // Создаёт PENDING-подписки без платежа — занимает места конкурентами на
+    // время оформления (20 мин). Вызывается фронтом при входе на
+    // SubscriptionCheckoutPage; PurchaseSubscription затем отменяет этот холд
+    // и создаёт новый PENDING с платежом (cancel-before-retry).
+    rpc SyncSubscriptionHold (SyncSubscriptionHoldRequest) returns (SyncSubscriptionHoldResponse);
 }
 
 // ===== SubscriptionPlan =====
@@ -489,10 +496,13 @@ message ReleaseSeasonSeatRequest {
 message GetPlanSeatMapRequest {
     string plan_id = 1;
     optional string sector_id = 2;
+    // Если задан — места с живым (ACTIVE/непросроченный PENDING) абонементом
+    // этого пользователя возвращаются со статусом MY_HOLD вместо TAKEN.
+    optional string user_id = 3;
 }
 
 message GetPlanSeatMapResponse {
-    // Только занятые места (status всегда "TAKEN"); остальные — свободны.
+    // Занятые места: status = "TAKEN" (чужие) или "MY_HOLD" (мой холд).
     repeated SeasonSeat seats = 1;
 }
 
@@ -754,4 +764,22 @@ message ActivateOrgBookingSubscriptionsRequest {
 message ActivateOrgBookingSubscriptionsResponse {
     // Количество фактически активированных абонементов.
     int32 activated = 1;
+}
+
+// ===== 4.20.0: серверный TTL-холд для абонемента =====
+
+message SyncSubscriptionHoldRequest {
+    string user_id = 1;
+    string plan_id = 2;
+    // FIXED_SEAT: список мест. GA: пусто.
+    repeated SeatRef seats = 3;
+    // GENERAL_ADMISSION — сколько абонементов.
+    optional int32 ga_quantity = 4;
+}
+
+message SyncSubscriptionHoldResponse {
+    // Null если есть конфликты.
+    optional google.protobuf.Timestamp expires_at = 1;
+    // Места, занятые другими и не включённые в холд.
+    repeated string seat_conflicts = 2;
 }

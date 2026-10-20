@@ -95,6 +95,7 @@ function SubscriptionServiceControllerMethods() {
             "listMyResaleListings",
             "buyResaleListing",
             "listResaleListings",
+            "syncSubscriptionHold",
         ];
         for (const method of grpcMethods) {
             const descriptor = Reflect.getOwnPropertyDescriptor(constructor.prototype, method);

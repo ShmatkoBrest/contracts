@@ -395,9 +395,14 @@ export interface ReleaseSeasonSeatRequest {
 export interface GetPlanSeatMapRequest {
     planId: string;
     sectorId?: string | undefined;
+    /**
+     * Если задан — места с живым (ACTIVE/непросроченный PENDING) абонементом
+     * этого пользователя возвращаются со статусом MY_HOLD вместо TAKEN.
+     */
+    userId?: string | undefined;
 }
 export interface GetPlanSeatMapResponse {
-    /** Только занятые места (status всегда "TAKEN"); остальные — свободны. */
+    /** Занятые места: status = "TAKEN" (чужие) или "MY_HOLD" (мой холд). */
     seats: SeasonSeat[];
 }
 export interface GetSubscriptionHeldSeatsRequest {
@@ -636,6 +641,20 @@ export interface ActivateOrgBookingSubscriptionsResponse {
     /** Количество фактически активированных абонементов. */
     activated: number;
 }
+export interface SyncSubscriptionHoldRequest {
+    userId: string;
+    planId: string;
+    /** FIXED_SEAT: список мест. GA: пусто. */
+    seats: SeatRef[];
+    /** GENERAL_ADMISSION — сколько абонементов. */
+    gaQuantity?: number | undefined;
+}
+export interface SyncSubscriptionHoldResponse {
+    /** Null если есть конфликты. */
+    expiresAt?: Timestamp | undefined;
+    /** Места, занятые другими и не включённые в холд. */
+    seatConflicts: string[];
+}
 export declare const SUBSCRIPTION_V1_PACKAGE_NAME = "subscription.v1";
 export interface SubscriptionServiceClient {
     /** Планы абонементов */
@@ -735,6 +754,14 @@ export interface SubscriptionServiceClient {
      * (только status=LISTED, без идентичности продавца).
      */
     listResaleListings(request: ListResaleListingsRequest): Observable<ListResaleListingsResponse>;
+    /**
+     * ===== 4.20.0: серверный TTL-холд для абонемента (без оплаты) =====
+     * Создаёт PENDING-подписки без платежа — занимает места конкурентами на
+     * время оформления (20 мин). Вызывается фронтом при входе на
+     * SubscriptionCheckoutPage; PurchaseSubscription затем отменяет этот холд
+     * и создаёт новый PENDING с платежом (cancel-before-retry).
+     */
+    syncSubscriptionHold(request: SyncSubscriptionHoldRequest): Observable<SyncSubscriptionHoldResponse>;
 }
 export interface SubscriptionServiceController {
     /** Планы абонементов */
@@ -834,6 +861,14 @@ export interface SubscriptionServiceController {
      * (только status=LISTED, без идентичности продавца).
      */
     listResaleListings(request: ListResaleListingsRequest): Promise<ListResaleListingsResponse> | Observable<ListResaleListingsResponse> | ListResaleListingsResponse;
+    /**
+     * ===== 4.20.0: серверный TTL-холд для абонемента (без оплаты) =====
+     * Создаёт PENDING-подписки без платежа — занимает места конкурентами на
+     * время оформления (20 мин). Вызывается фронтом при входе на
+     * SubscriptionCheckoutPage; PurchaseSubscription затем отменяет этот холд
+     * и создаёт новый PENDING с платежом (cancel-before-retry).
+     */
+    syncSubscriptionHold(request: SyncSubscriptionHoldRequest): Promise<SyncSubscriptionHoldResponse> | Observable<SyncSubscriptionHoldResponse> | SyncSubscriptionHoldResponse;
 }
 export declare function SubscriptionServiceControllerMethods(): (constructor: Function) => void;
 export declare const SUBSCRIPTION_SERVICE_NAME = "SubscriptionService";
