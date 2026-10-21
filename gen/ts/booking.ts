@@ -535,6 +535,12 @@ export interface ValidateTicketResponse {
    */
   checkedInAt?: string | undefined;
   checkedInBy: string;
+  /** 4.29.0: категория билета («Льготный», «Детский» и т.д.); пусто — полный. */
+  audience: string;
+  /** 4.30.0: true → успешное сканирование отображать синим. */
+  sectorHighlight: boolean;
+  /** 4.30.1: id сектора билета — фронт сопоставляет с локальным кэшом секторов. */
+  sectorId: string;
 }
 
 export interface CheckInTicketRequest {
@@ -562,6 +568,12 @@ export interface CheckInTicketResponse {
    */
   checkedInAt: string;
   checkedInBy: string;
+  /** 4.29.0: категория билета («Льготный», «Детский» и т.д.); пусто — полный. */
+  audience: string;
+  /** 4.30.0: true → успешное сканирование отображать синим. */
+  sectorHighlight: boolean;
+  /** 4.30.1: id сектора билета — фронт сопоставляет с локальным кэшом секторов. */
+  sectorId: string;
 }
 
 export interface ReleaseTicketRequest {
@@ -586,6 +598,9 @@ export interface ReleaseTicketResponse {
   sectorName: string;
   row: number;
   number: number;
+  /** 4.30.1: id сектора (для кэша сканера) и категория билета. */
+  sectorId: string;
+  audience: string;
 }
 
 export interface GetPrintTemplateRequest {
@@ -671,6 +686,13 @@ export interface OrgBookingSubscriptionItemInput {
   label: string;
 }
 
+/** 4.30.0: Входная позиция билетного заказа при создании заявки */
+export interface OrgBookingOrderItemInput {
+  orderId: string;
+  amount: number;
+  label: string;
+}
+
 export interface OrgBookingProto {
   id: string;
   orgName: string;
@@ -696,6 +718,8 @@ export interface CreateOrgBookingRequest {
   totalAmount: number;
   /** 4.16.0: позиции абонементов с суммами и метками мест */
   subscriptionItems: OrgBookingSubscriptionItemInput[];
+  /** 4.30.0: позиции билетных заказов с суммами и метками мест */
+  orderItems: OrgBookingOrderItemInput[];
 }
 
 export interface CreateOrgBookingResponse {

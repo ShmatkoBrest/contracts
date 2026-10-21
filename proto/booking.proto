@@ -588,6 +588,14 @@ message ValidateTicketResponse {
     // информационной подсказки — не только режим «проход» это видит).
     optional string checked_in_at = 11;
     string checked_in_by = 12;
+    // 4.29.0: категория билета для контроля на входе («Льготный», «Детский» и т.д.);
+    // пусто — полный (взрослый) билет.
+    string audience = 13;
+    // 4.30.0: true → успешное сканирование отображать синим (сектор помечен как
+    // «альтернативный поток», настраивается в редакторе арены).
+    bool sector_highlight = 14;
+    // 4.30.1: id сектора билета — фронт сопоставляет с локальным кэшом секторов.
+    string sector_id = 15;
 }
 
 message CheckInTicketRequest {
@@ -613,6 +621,12 @@ message CheckInTicketResponse {
     // (существовавшее раньше — для redflag-сообщения «кем и когда»).
     string checked_in_at = 10;
     string checked_in_by = 11;
+    // 4.29.0: категория билета («Льготный», «Детский» и т.д.); пусто — полный.
+    string audience = 12;
+    // 4.30.0: true → успешное сканирование отображать синим.
+    bool sector_highlight = 13;
+    // 4.30.1: id сектора билета.
+    string sector_id = 14;
 }
 
 message ReleaseTicketRequest {
@@ -635,6 +649,9 @@ message ReleaseTicketResponse {
     string sector_name = 7;
     int32 row = 8;
     int32 number = 9;
+    // 4.30.1: id сектора (для кэша сканера) и категория билета.
+    string sector_id = 10;
+    string audience = 11;
 }
 
 message GetPrintTemplateRequest {
@@ -714,6 +731,13 @@ message OrgBookingSubscriptionItemInput {
     string label = 3;
 }
 
+// 4.30.0: Входная позиция билетного заказа при создании заявки (с суммой и меткой места)
+message OrgBookingOrderItemInput {
+    string order_id = 1;
+    int32 amount = 2;
+    string label = 3;
+}
+
 message OrgBookingProto {
     string id = 1;
     string org_name = 2;
@@ -739,6 +763,8 @@ message CreateOrgBookingRequest {
     int32 total_amount = 7;
     // 4.16.0: позиции абонементов с суммами и метками мест
     repeated OrgBookingSubscriptionItemInput subscription_items = 8;
+    // 4.30.0: позиции билетных заказов с суммами и метками мест
+    repeated OrgBookingOrderItemInput order_items = 9;
 }
 
 message CreateOrgBookingResponse {

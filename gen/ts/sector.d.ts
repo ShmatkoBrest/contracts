@@ -79,6 +79,8 @@ export interface UpdateSectorRequest {
      * явного решения, а не безусловной перезаписи через Update.
      */
     capacity?: number | undefined;
+    /** 4.30.0: при сканировании этого сектора — синий фон вместо зелёного. */
+    highlightOnScanner?: boolean | undefined;
 }
 export interface UpdateSectorResponse {
     sector: Sector | undefined;
@@ -103,6 +105,8 @@ export interface Sector {
      * для GENERAL_ADMISSION). Пусто/0, если мест ещё не раскладывали.
      */
     seatCount?: number | undefined;
+    /** 4.30.0: при сканировании этого сектора — синий фон вместо зелёного. */
+    highlightOnScanner: boolean;
 }
 export interface RowLayout {
     row: number;
