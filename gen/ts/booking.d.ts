@@ -189,6 +189,13 @@ export interface GetGaAvailabilityResponse {
      */
     sold: number;
 }
+export interface GetHeldSeatIdsRequest {
+    sectorId: string;
+    screeningId: string;
+}
+export interface GetHeldSeatIdsResponse {
+    seatIds: string[];
+}
 export interface SyncHoldRequest {
     userId: string;
     screeningId: string;
@@ -658,6 +665,10 @@ export interface BookingServiceClient {
      * освобождается сразу же следующим вызовом (не входит в seats/ga).
      */
     syncHold(request: SyncHoldRequest): Observable<SyncHoldResponse>;
+    /**
+     * 4.24.0: PENDING-холды корзины в секторе на сеанс — bidirectional cross-blocking.
+     */
+    getHeldSeatIds(request: GetHeldSeatIdsRequest): Observable<GetHeldSeatIdsResponse>;
     /**
      * Финализация холда перед оплатой — payment-service берёт отсюда
      * orderId/amount вместо повторного CreateReservation (холд уже всё

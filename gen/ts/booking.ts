@@ -232,6 +232,16 @@ export interface GetGaAvailabilityResponse {
   sold: number;
 }
 
+export interface GetHeldSeatIdsRequest {
+  sectorId: string;
+  screeningId: string;
+}
+
+export interface GetHeldSeatIdsResponse {
+  /** PENDING-холды корзины (не RESERVED/PAID) — для отображения как занятых на карте мест. */
+  seatIds: string[];
+}
+
 export interface SyncHoldRequest {
   userId: string;
   screeningId: string;
@@ -781,6 +791,13 @@ export interface BookingServiceClient {
    */
 
   syncHold(request: SyncHoldRequest): Observable<SyncHoldResponse>;
+
+  /**
+   * 4.24.0: PENDING-холды корзины в секторе на сеанс — для отображения
+   * как занятых в картах мест абонементов (bidirectional cross-blocking).
+   */
+
+  getHeldSeatIds(request: GetHeldSeatIdsRequest): Observable<GetHeldSeatIdsResponse>;
 
   /**
    * Финализация холда перед оплатой — payment-service берёт отсюда

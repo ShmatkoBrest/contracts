@@ -40,6 +40,9 @@ service BookingService {
     // orderId/amount вместо повторного CreateReservation (холд уже всё
     // провалидировал и посчитал при последней синхронизации).
     rpc FinalizeHold (FinalizeHoldRequest) returns (FinalizeHoldResponse);
+    // 4.24.0: seatId мест, находящихся в активных TTL-холдах (PENDING-заказы
+    // online-покупателей) — чтобы карта мест различала cart_hold и reserved.
+    rpc GetHeldSeatIds (GetHeldSeatIdsRequest) returns (GetHeldSeatIdsResponse);
 
     // 3.23.0: отправить все билеты заказа на e-mail (каждый билет — со своим
     // QR, письмо рендерит notification-service). Только для PAID-заказов.
@@ -350,6 +353,15 @@ message FinalizeHoldResponse {
     // (деньги напрямую ему), а не через реквизиты платформы по умолчанию.
     // Пусто — у события нет организатора либо он не задан.
     string organizer_id = 3;
+}
+
+message GetHeldSeatIdsRequest {
+    string sector_id = 1;
+    string screening_id = 2;
+}
+
+message GetHeldSeatIdsResponse {
+    repeated string seat_ids = 1;
 }
 
 message SendTicketsEmailRequest {
