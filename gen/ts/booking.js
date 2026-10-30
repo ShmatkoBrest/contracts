@@ -31,6 +31,7 @@ function BookingServiceControllerMethods() {
             "getGaAvailability",
             "syncHold",
             "finalizeHold",
+            "getHeldSeatIds",
             "sendTicketsEmail",
             "createCashierSale",
             "openShift",
@@ -55,6 +56,7 @@ function BookingServiceControllerMethods() {
             "getOrgBooking",
             "listOrgBookings",
             "updateOrgBooking",
+            "sendOrgBookingInvoiceEmail",
         ];
         for (const method of grpcMethods) {
             const descriptor = Reflect.getOwnPropertyDescriptor(constructor.prototype, method);

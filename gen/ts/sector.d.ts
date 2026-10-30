@@ -79,7 +79,10 @@ export interface UpdateSectorRequest {
      * явного решения, а не безусловной перезаписи через Update.
      */
     capacity?: number | undefined;
-    /** 4.30.0: при сканировании этого сектора — синий фон вместо зелёного. */
+    /**
+     * 4.30.0: флаг «отображать синим цветом на сканере» — не передан → поле
+     * не обновляется (partial update).
+     */
     highlightOnScanner?: boolean | undefined;
 }
 export interface UpdateSectorResponse {
@@ -105,7 +108,10 @@ export interface Sector {
      * для GENERAL_ADMISSION). Пусто/0, если мест ещё не раскладывали.
      */
     seatCount?: number | undefined;
-    /** 4.30.0: при сканировании этого сектора — синий фон вместо зелёного. */
+    /**
+     * 4.30.0: при успешном сканировании этого сектора отображать синим цветом
+     * (вместо стандартного зелёного) — для разграничения потоков на входе.
+     */
     highlightOnScanner: boolean;
 }
 export interface RowLayout {

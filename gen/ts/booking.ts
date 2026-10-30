@@ -232,16 +232,6 @@ export interface GetGaAvailabilityResponse {
   sold: number;
 }
 
-export interface GetHeldSeatIdsRequest {
-  sectorId: string;
-  screeningId: string;
-}
-
-export interface GetHeldSeatIdsResponse {
-  /** PENDING-холды корзины (не RESERVED/PAID) — для отображения как занятых на карте мест. */
-  seatIds: string[];
-}
-
 export interface SyncHoldRequest {
   userId: string;
   screeningId: string;
@@ -287,6 +277,15 @@ export interface FinalizeHoldResponse {
    * Пусто — у события нет организатора либо он не задан.
    */
   organizerId: string;
+}
+
+export interface GetHeldSeatIdsRequest {
+  sectorId: string;
+  screeningId: string;
+}
+
+export interface GetHeldSeatIdsResponse {
+  seatIds: string[];
 }
 
 export interface SendTicketsEmailRequest {
@@ -535,9 +534,15 @@ export interface ValidateTicketResponse {
    */
   checkedInAt?: string | undefined;
   checkedInBy: string;
-  /** 4.29.0: категория билета («Льготный», «Детский» и т.д.); пусто — полный. */
+  /**
+   * 4.29.0: категория билета для контроля на входе («Льготный», «Детский» и т.д.);
+   * пусто — полный (взрослый) билет.
+   */
   audience: string;
-  /** 4.30.0: true → успешное сканирование отображать синим. */
+  /**
+   * 4.30.0: true → успешное сканирование отображать синим (сектор помечен как
+   * «альтернативный поток», настраивается в редакторе арены).
+   */
   sectorHighlight: boolean;
   /** 4.30.1: id сектора билета — фронт сопоставляет с локальным кэшом секторов. */
   sectorId: string;
@@ -572,7 +577,7 @@ export interface CheckInTicketResponse {
   audience: string;
   /** 4.30.0: true → успешное сканирование отображать синим. */
   sectorHighlight: boolean;
-  /** 4.30.1: id сектора билета — фронт сопоставляет с локальным кэшом секторов. */
+  /** 4.30.1: id сектора билета. */
   sectorId: string;
 }
 
@@ -686,7 +691,7 @@ export interface OrgBookingSubscriptionItemInput {
   label: string;
 }
 
-/** 4.30.0: Входная позиция билетного заказа при создании заявки */
+/** 4.30.0: Входная позиция билетного заказа при создании заявки (с суммой и меткой места) */
 export interface OrgBookingOrderItemInput {
   orderId: string;
   amount: number;
@@ -755,6 +760,23 @@ export interface UpdateOrgBookingResponse {
   orgBooking: OrgBookingProto | undefined;
 }
 
+export interface SendOrgBookingInvoiceEmailRequest {
+  orgBookingId: string;
+  email: string;
+  /** Готовый PDF-счёт; booking-service кладёт его в outbox как base64. */
+  pdf: Uint8Array;
+  filename: string;
+  orgName: string;
+  /** Сумма, копейки — для текста письма. */
+  totalAmount: number;
+  /** Организатор — письмо через его SMTP, если настроен. */
+  organizerId: string;
+}
+
+export interface SendOrgBookingInvoiceEmailResponse {
+  ok: boolean;
+}
+
 export const BOOKING_V1_PACKAGE_NAME = "booking.v1";
 
 export interface BookingServiceClient {
@@ -817,19 +839,19 @@ export interface BookingServiceClient {
   syncHold(request: SyncHoldRequest): Observable<SyncHoldResponse>;
 
   /**
-   * 4.24.0: PENDING-холды корзины в секторе на сеанс — для отображения
-   * как занятых в картах мест абонементов (bidirectional cross-blocking).
-   */
-
-  getHeldSeatIds(request: GetHeldSeatIdsRequest): Observable<GetHeldSeatIdsResponse>;
-
-  /**
    * Финализация холда перед оплатой — payment-service берёт отсюда
    * orderId/amount вместо повторного CreateReservation (холд уже всё
    * провалидировал и посчитал при последней синхронизации).
    */
 
   finalizeHold(request: FinalizeHoldRequest): Observable<FinalizeHoldResponse>;
+
+  /**
+   * 4.24.0: seatId мест, находящихся в активных TTL-холдах (PENDING-заказы
+   * online-покупателей) — чтобы карта мест различала cart_hold и reserved.
+   */
+
+  getHeldSeatIds(request: GetHeldSeatIdsRequest): Observable<GetHeldSeatIdsResponse>;
 
   /**
    * 3.23.0: отправить все билеты заказа на e-mail (каждый билет — со своим
@@ -950,6 +972,12 @@ export interface BookingServiceClient {
   listOrgBookings(request: ListOrgBookingsRequest): Observable<ListOrgBookingsResponse>;
 
   updateOrgBooking(request: UpdateOrgBookingRequest): Observable<UpdateOrgBookingResponse>;
+
+  /** 4.31.0: письмо организации со счётом (PDF собирает вызывающая сторона). */
+
+  sendOrgBookingInvoiceEmail(
+    request: SendOrgBookingInvoiceEmailRequest,
+  ): Observable<SendOrgBookingInvoiceEmailResponse>;
 }
 
 export interface BookingServiceController {
@@ -1041,6 +1069,15 @@ export interface BookingServiceController {
   finalizeHold(
     request: FinalizeHoldRequest,
   ): Promise<FinalizeHoldResponse> | Observable<FinalizeHoldResponse> | FinalizeHoldResponse;
+
+  /**
+   * 4.24.0: seatId мест, находящихся в активных TTL-холдах (PENDING-заказы
+   * online-покупателей) — чтобы карта мест различала cart_hold и reserved.
+   */
+
+  getHeldSeatIds(
+    request: GetHeldSeatIdsRequest,
+  ): Promise<GetHeldSeatIdsResponse> | Observable<GetHeldSeatIdsResponse> | GetHeldSeatIdsResponse;
 
   /**
    * 3.23.0: отправить все билеты заказа на e-mail (каждый билет — со своим
@@ -1201,6 +1238,15 @@ export interface BookingServiceController {
   updateOrgBooking(
     request: UpdateOrgBookingRequest,
   ): Promise<UpdateOrgBookingResponse> | Observable<UpdateOrgBookingResponse> | UpdateOrgBookingResponse;
+
+  /** 4.31.0: письмо организации со счётом (PDF собирает вызывающая сторона). */
+
+  sendOrgBookingInvoiceEmail(
+    request: SendOrgBookingInvoiceEmailRequest,
+  ):
+    | Promise<SendOrgBookingInvoiceEmailResponse>
+    | Observable<SendOrgBookingInvoiceEmailResponse>
+    | SendOrgBookingInvoiceEmailResponse;
 }
 
 export function BookingServiceControllerMethods() {
@@ -1217,6 +1263,7 @@ export function BookingServiceControllerMethods() {
       "getGaAvailability",
       "syncHold",
       "finalizeHold",
+      "getHeldSeatIds",
       "sendTicketsEmail",
       "createCashierSale",
       "openShift",
@@ -1241,6 +1288,7 @@ export function BookingServiceControllerMethods() {
       "getOrgBooking",
       "listOrgBookings",
       "updateOrgBooking",
+      "sendOrgBookingInvoiceEmail",
     ];
     for (const method of grpcMethods) {
       const descriptor: any = Reflect.getOwnPropertyDescriptor(constructor.prototype, method);

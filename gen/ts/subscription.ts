@@ -83,7 +83,11 @@ export interface CreateSubscriptionPlanRequest {
     | undefined;
   /** 4.10.0 — окно продаж: план недоступен вне [saleFrom, saleTo]. */
   saleFrom?: Timestamp | undefined;
-  saleTo?: Timestamp | undefined;
+  saleTo?:
+    | Timestamp
+    | undefined;
+  /** 4.31.0 — картинка плана (ключ media-service). */
+  image?: string | undefined;
 }
 
 export interface UpdateSubscriptionPlanRequest {
@@ -113,7 +117,11 @@ export interface UpdateSubscriptionPlanRequest {
     | undefined;
   /** 4.10.0 — окно продаж: план недоступен вне [saleFrom, saleTo]. */
   saleFrom?: Timestamp | undefined;
-  saleTo?: Timestamp | undefined;
+  saleTo?:
+    | Timestamp
+    | undefined;
+  /** 4.31.0 — картинка плана; пустая строка — убрать картинку. */
+  image?: string | undefined;
 }
 
 export interface EventGroupIdList {
@@ -195,7 +203,11 @@ export interface SubscriptionPlan {
   organizerId: string;
   /** 4.10.0 — окно продаж: план недоступен вне [saleFrom, saleTo]. */
   saleFrom?: Timestamp | undefined;
-  saleTo?: Timestamp | undefined;
+  saleTo?:
+    | Timestamp
+    | undefined;
+  /** 4.31.0 — картинка плана (ключ media-service), пусто — нет картинки. */
+  image: string;
 }
 
 export interface PurchaseSubscriptionRequest {
@@ -796,6 +808,34 @@ export interface SyncSubscriptionHoldResponse {
   seatConflicts: string[];
 }
 
+export interface GetPrintableSubscriptionsRequest {
+  ids: string[];
+}
+
+export interface PrintableSubscription {
+  subscriptionId: string;
+  userId: string;
+  planId: string;
+  planTitle: string;
+  /** Код привязки (если ещё не привязан) — иначе пусто; печатается как номер/QR. */
+  claimCode: string;
+  validFrom?: Timestamp | undefined;
+  validTo?:
+    | Timestamp
+    | undefined;
+  /** Пусто для GENERAL_ADMISSION. */
+  seatId: string;
+  sectorId: string;
+  /** Фактически уплаченная сумма, копейки. */
+  price: number;
+  /** Код категории места ('' — полный тариф). */
+  audienceCode: string;
+}
+
+export interface GetPrintableSubscriptionsResponse {
+  items: PrintableSubscription[];
+}
+
 export const SUBSCRIPTION_V1_PACKAGE_NAME = "subscription.v1";
 
 export interface SubscriptionServiceClient {
@@ -974,6 +1014,14 @@ export interface SubscriptionServiceClient {
    */
 
   syncSubscriptionHold(request: SyncSubscriptionHoldRequest): Observable<SyncSubscriptionHoldResponse>;
+
+  /**
+   * 4.31.0: данные для печати карты/термобилета абонемента одним вызовом
+   * (план, сумма, категория, место-ссылки). Геометрию места и имя
+   * держателя резолвит вызывающая сторона (gateway).
+   */
+
+  getPrintableSubscriptions(request: GetPrintableSubscriptionsRequest): Observable<GetPrintableSubscriptionsResponse>;
 }
 
 export interface SubscriptionServiceController {
@@ -1247,6 +1295,19 @@ export interface SubscriptionServiceController {
   syncSubscriptionHold(
     request: SyncSubscriptionHoldRequest,
   ): Promise<SyncSubscriptionHoldResponse> | Observable<SyncSubscriptionHoldResponse> | SyncSubscriptionHoldResponse;
+
+  /**
+   * 4.31.0: данные для печати карты/термобилета абонемента одним вызовом
+   * (план, сумма, категория, место-ссылки). Геометрию места и имя
+   * держателя резолвит вызывающая сторона (gateway).
+   */
+
+  getPrintableSubscriptions(
+    request: GetPrintableSubscriptionsRequest,
+  ):
+    | Promise<GetPrintableSubscriptionsResponse>
+    | Observable<GetPrintableSubscriptionsResponse>
+    | GetPrintableSubscriptionsResponse;
 }
 
 export function SubscriptionServiceControllerMethods() {
@@ -1292,6 +1353,7 @@ export function SubscriptionServiceControllerMethods() {
       "buyResaleListing",
       "listResaleListings",
       "syncSubscriptionHold",
+      "getPrintableSubscriptions",
     ];
     for (const method of grpcMethods) {
       const descriptor: any = Reflect.getOwnPropertyDescriptor(constructor.prototype, method);

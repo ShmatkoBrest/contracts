@@ -96,6 +96,11 @@ service SubscriptionService {
     // SubscriptionCheckoutPage; PurchaseSubscription затем отменяет этот холд
     // и создаёт новый PENDING с платежом (cancel-before-retry).
     rpc SyncSubscriptionHold (SyncSubscriptionHoldRequest) returns (SyncSubscriptionHoldResponse);
+
+    // 4.31.0: данные для печати карты/термобилета абонемента одним вызовом
+    // (план, сумма, категория, место-ссылки). Геометрию места и имя
+    // держателя резолвит вызывающая сторона (gateway).
+    rpc GetPrintableSubscriptions (GetPrintableSubscriptionsRequest) returns (GetPrintableSubscriptionsResponse);
 }
 
 // ===== SubscriptionPlan =====
@@ -124,6 +129,8 @@ message CreateSubscriptionPlanRequest {
     // 4.10.0 — окно продаж: план недоступен вне [saleFrom, saleTo].
     optional google.protobuf.Timestamp sale_from = 9;
     optional google.protobuf.Timestamp sale_to = 10;
+    // 4.31.0 — картинка плана (ключ media-service).
+    optional string image = 11;
 }
 
 message UpdateSubscriptionPlanRequest {
@@ -144,6 +151,8 @@ message UpdateSubscriptionPlanRequest {
     // 4.10.0 — окно продаж: план недоступен вне [saleFrom, saleTo].
     optional google.protobuf.Timestamp sale_from = 10;
     optional google.protobuf.Timestamp sale_to = 11;
+    // 4.31.0 — картинка плана; пустая строка — убрать картинку.
+    optional string image = 12;
 }
 
 message EventGroupIdList {
@@ -218,6 +227,8 @@ message SubscriptionPlan {
     // 4.10.0 — окно продаж: план недоступен вне [saleFrom, saleTo].
     optional google.protobuf.Timestamp sale_from = 12;
     optional google.protobuf.Timestamp sale_to = 13;
+    // 4.31.0 — картинка плана (ключ media-service), пусто — нет картинки.
+    string image = 14;
 }
 
 // ===== UserSubscription =====
@@ -782,4 +793,32 @@ message SyncSubscriptionHoldResponse {
     optional google.protobuf.Timestamp expires_at = 1;
     // Места, занятые другими и не включённые в холд.
     repeated string seat_conflicts = 2;
+}
+
+// ===== 4.31.0: печать абонементов =====
+
+message GetPrintableSubscriptionsRequest {
+    repeated string ids = 1;
+}
+
+message PrintableSubscription {
+    string subscription_id = 1;
+    string user_id = 2;
+    string plan_id = 3;
+    string plan_title = 4;
+    // Код привязки (если ещё не привязан) — иначе пусто; печатается как номер/QR.
+    string claim_code = 5;
+    optional google.protobuf.Timestamp valid_from = 6;
+    optional google.protobuf.Timestamp valid_to = 7;
+    // Пусто для GENERAL_ADMISSION.
+    string seat_id = 8;
+    string sector_id = 9;
+    // Фактически уплаченная сумма, копейки.
+    int32 price = 10;
+    // Код категории места ('' — полный тариф).
+    string audience_code = 11;
+}
+
+message GetPrintableSubscriptionsResponse {
+    repeated PrintableSubscription items = 1;
 }

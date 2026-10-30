@@ -108,6 +108,8 @@ service BookingService {
     rpc GetOrgBooking (GetOrgBookingRequest) returns (GetOrgBookingResponse);
     rpc ListOrgBookings (ListOrgBookingsRequest) returns (ListOrgBookingsResponse);
     rpc UpdateOrgBooking (UpdateOrgBookingRequest) returns (UpdateOrgBookingResponse);
+    // 4.31.0: письмо организации со счётом (PDF собирает вызывающая сторона).
+    rpc SendOrgBookingInvoiceEmail (SendOrgBookingInvoiceEmailRequest) returns (SendOrgBookingInvoiceEmailResponse);
 }
 
 // ===== Cashier =====
@@ -798,4 +800,22 @@ message UpdateOrgBookingRequest {
 
 message UpdateOrgBookingResponse {
     OrgBookingProto org_booking = 1;
+}
+// ===== 4.31.0: счёт заявки организации на e-mail =====
+
+message SendOrgBookingInvoiceEmailRequest {
+    string org_booking_id = 1;
+    string email = 2;
+    // Готовый PDF-счёт; booking-service кладёт его в outbox как base64.
+    bytes pdf = 3;
+    string filename = 4;
+    string org_name = 5;
+    // Сумма, копейки — для текста письма.
+    int32 total_amount = 6;
+    // Организатор — письмо через его SMTP, если настроен.
+    string organizer_id = 7;
+}
+
+message SendOrgBookingInvoiceEmailResponse {
+    bool ok = 1;
 }

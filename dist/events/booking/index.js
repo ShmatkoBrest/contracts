@@ -15,3 +15,4 @@ var __exportStar = (this && this.__exportStar) || function(m, exports) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 __exportStar(require("./tickets-email-requested.interface"), exports);
+__exportStar(require("./org-invoice-email-requested.interface"), exports);
